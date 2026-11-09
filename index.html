@@ -447,4 +447,313 @@ async function renderIngresosAdmin() {
         if (hasta) query = query.lte('record_date', hasta + 'T23:59:59');
 
         const { data, error } = await query;
-        if (error) { document.getElementById('tablaIngresos').innerHTML =
+        if (error) { document.getElementById('tablaIngresos').innerHTML = `<p class="text-rose-600 p-3 text-xs font-bold">${error.message}</p>`; return; }
+
+        const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
+        const porEmpleado = {};
+        (data || []).forEach(r => {
+            const nombre = r.profiles?.full_name || '—';
+            porEmpleado[nombre] = (porEmpleado[nombre] || 0) + Number(r.amount);
+        });
+
+        document.getElementById('resumenTotales').innerHTML = `
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
+                <div class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-sm border border-slate-800">
+                    <p class="text-[10px] font-bold uppercase text-slate-400">Total General</p>
+                    <p class="text-lg font-black text-amber-400">${fmt(total)}</p>
+                </div>
+                ${Object.entries(porEmpleado).map(([n,t]) => `
+                    <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm">
+                        <p class="text-[10px] font-bold text-slate-400 truncate">${n}</p>
+                        <p class="text-sm font-extrabold text-slate-800">${fmt(t)}</p>
+                    </div>
+                `).join('')}
+            </div>`;
+
+        const rows = (data || []).map(r => `
+            <tr class="border-b border-slate-100">
+                <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.record_date || r.created_at)}</td>
+                <td data-label="Empleado" class="py-3 px-3 font-bold text-slate-800">${r.profiles?.full_name || '—'}</td>
+                <td data-label="Servicio" class="py-3 px-3 font-medium text-slate-700">${r.services?.name || '—'}</td>
+                <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
+                <td data-label="Pago" class="py-3 px-3 font-medium text-slate-600 capitalize">${r.payment_method || '—'}</td>
+                <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
+                <td data-label="Acciones" class="py-3 px-3">
+                    <div class="flex items-center space-x-1">
+                        <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date || r.created_at}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </td>
+            </tr>`).join('');
+
+        document.getElementById('tablaIngresos').innerHTML = `
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Hora y Fecha</th><th class="py-3 px-3">Empleado</th><th class="py-3 px-3">Servicio</th><th class="py-3 px-3">Cliente</th><th class="py-3 px-3">Pago</th><th class="py-3 px-3">Monto</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows || '<tr><td class="py-4 px-3 text-slate-400 font-medium" colspan="7">Sin registros</td></tr>'}</tbody>
+            </table>`;
+    }
+
+    document.getElementById('filtrarBtn').onclick = cargar;
+    cargar();
+}
+
+// ----------------------------------------------------------------
+// EMPLEADO: REGISTRAR INGRESO (CON GALERÍA DE SERVICIOS)
+// ----------------------------------------------------------------
+async function renderRegistrarIngreso() {
+    layout('registrar');
+    selectedServiceId = null;
+    
+    // Usar cache o consultar si está vacía
+    if (!servicesCache.length) {
+        const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
+        servicesCache = services || [];
+    }
+
+    const activeServices = servicesCache.filter(s => s.active !== false);
+
+    const galleryHtml = activeServices.length > 0 ? activeServices.map(s => `
+        <div onclick="selectServiceCard('${s.id}', ${s.price})" id="svc-card-${s.id}" class="svc-card bg-slate-50 hover:bg-amber-50/70 border border-slate-200/80 hover:border-amber-400 p-3.5 rounded-2xl cursor-pointer transition flex items-center justify-between active:scale-95 shadow-sm">
+            <div class="flex items-center space-x-3 truncate">
+                <div class="bg-amber-500 text-slate-900 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
+                    <i class="fa-solid fa-scissors"></i>
+                </div>
+                <div class="truncate">
+                    <h4 class="font-extrabold text-slate-800 text-xs truncate">${s.name}</h4>
+                    <span class="text-[11px] font-black text-amber-600">${fmt(s.price)}</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-circle-check text-slate-300 text-base check-icon transition"></i>
+        </div>
+    `).join('') : `<p class="text-xs text-slate-400 col-span-2 text-center py-4">No hay servicios disponibles registrados.</p>`;
+
+    app.innerHTML = `<div id="content" class="max-w-md mx-auto"></div>`;
+    const content = document.getElementById('content');
+
+    const nowLocal = toLocalDatetimeInput();
+
+    content.innerHTML = `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2 pb-2 border-b border-slate-100">
+                <div class="bg-amber-100 text-amber-700 p-2 rounded-xl"><i class="fa-solid fa-scissors"></i></div>
+                <h3 class="font-extrabold text-slate-900 text-base">Registrar Nuevo Ingreso</h3>
+            </div>
+            <form id="ingresoForm" class="space-y-3.5">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">Seleccionar Servicio (Galería) *</label>
+                    <div id="galeriaServicios" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                        ${galleryHtml}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Monto (Bs.) *</label>
+                    <input required type="number" step="0.01" id="montoInput" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 text-xs font-extrabold text-amber-600 rounded-xl px-3.5 py-3 focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Cliente (Opcional)</label>
+                    <input id="clienteInput" placeholder="Ej. Ana Pérez" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
+                    <select id="pagoInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none">
+                        <option value="efectivo">💵 Efectivo</option>
+                        <option value="tarjeta">💳 Tarjeta</option>
+                        <option value="qr">📱 QR / Transferencia</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha y Hora</label>
+                    <input type="datetime-local" id="fechaInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none" value="${nowLocal}">
+                </div>
+                <button class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-3.5 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Guardar Ingreso</span>
+                </button>
+            </form>
+            <p id="okMsg" class="text-emerald-600 text-xs text-center font-extrabold"></p>
+        </div>`;
+
+    document.getElementById('ingresoForm').onsubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedServiceId) {
+            alert("Por favor, selecciona un servicio de la galería.");
+            return;
+        }
+
+        const payload = {
+            employee_id: currentProfile.id,
+            service_id: selectedServiceId,
+            amount: parseFloat(document.getElementById('montoInput').value),
+            client_name: document.getElementById('clienteInput').value || null,
+            payment_method: document.getElementById('pagoInput').value,
+            record_date: new Date(document.getElementById('fechaInput').value).toISOString()
+        };
+        const { error } = await sb.from('income_records').insert(payload);
+        if (error) return alert(error.message);
+        document.getElementById('ingresoForm').reset();
+        selectedServiceId = null;
+        document.querySelectorAll('.svc-card').forEach(c => {
+            c.classList.remove('bg-amber-100/80', 'border-amber-500', 'shadow-md');
+            c.querySelector('.check-icon').classList.replace('text-amber-600', 'text-slate-300');
+        });
+        document.getElementById('fechaInput').value = toLocalDatetimeInput();
+        document.getElementById('okMsg').textContent = '✓ Ingreso registrado con éxito';
+        setTimeout(() => document.getElementById('okMsg').textContent = '', 2500);
+    };
+}
+
+// Selector visual de tarjeta en la Galería
+function selectServiceCard(id, price) {
+    selectedServiceId = id;
+    document.getElementById('montoInput').value = price;
+
+    document.querySelectorAll('.svc-card').forEach(c => {
+        c.classList.remove('bg-amber-100/80', 'border-amber-500', 'shadow-md');
+        const icon = c.querySelector('.check-icon');
+        if (icon) {
+            icon.classList.remove('text-amber-600');
+            icon.classList.add('text-slate-300');
+        }
+    });
+
+    const activeCard = document.getElementById(`svc-card-${id}`);
+    if (activeCard) {
+        activeCard.classList.add('bg-amber-100/80', 'border-amber-500', 'shadow-md');
+        const icon = activeCard.querySelector('.check-icon');
+        if (icon) {
+            icon.classList.remove('text-slate-300');
+            icon.classList.add('text-amber-600');
+        }
+    }
+}
+
+// ----------------------------------------------------------------
+// EMPLEADO: MI HISTORIAL
+// ----------------------------------------------------------------
+async function renderMiHistorial() {
+    layout('mishistorial');
+    const { data, error } = await sb.from('income_records')
+        .select('id, amount, client_name, payment_method, record_date, created_at, service_id, services(name)')
+        .eq('employee_id', currentProfile.id)
+        .order('record_date', { ascending: false });
+    
+    app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
+    const content = document.getElementById('content');
+    if (error) { content.innerHTML = `<p class="text-rose-600 text-xs font-bold">${error.message}</p>`; return; }
+
+    const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
+    const rows = (data || []).map(r => `
+        <tr class="border-b border-slate-100">
+            <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.record_date || r.created_at)}</td>
+            <td data-label="Servicio" class="py-3 px-3 font-bold text-slate-800">${r.services?.name || '—'}</td>
+            <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
+            <td data-label="Pago" class="py-3 px-3 font-medium text-slate-600 capitalize">${r.payment_method || '—'}</td>
+            <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
+            <td data-label="Acciones" class="py-3 px-3">
+                <div class="flex items-center space-x-1">
+                    <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date || r.created_at}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </td>
+        </tr>`).join('');
+
+    content.innerHTML = `
+        <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border border-slate-800 inline-block">
+            <p class="text-[10px] font-bold uppercase text-slate-400">Mi Total Acumulado</p>
+            <p class="text-xl font-black text-amber-400">${fmt(total)}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Hora y Fecha</th><th class="py-3 px-3">Servicio</th><th class="py-3 px-3">Cliente</th><th class="py-3 px-3">Pago</th><th class="py-3 px-3">Monto</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows || '<tr><td class="py-4 px-3 text-slate-400 font-medium" colspan="6">Aún no tienes registros</td></tr>'}</tbody>
+            </table>
+        </div>`;
+}
+
+// ----------------------------------------------------------------
+// EDICIÓN Y ELIMINACIÓN DE REGISTROS
+// ----------------------------------------------------------------
+async function openEditModal(id, serviceId, amount, clientName, paymentMethod, recordDate) {
+    document.getElementById('editRecordId').value = id;
+    document.getElementById('editMontoInput').value = amount;
+    document.getElementById('editClienteInput').value = clientName || '';
+    document.getElementById('editPagoInput').value = paymentMethod || 'efectivo';
+    document.getElementById('editFechaInput').value = toLocalDatetimeInput(recordDate);
+
+    // Carga ultrarrápida usando caché
+    if (!servicesCache.length) {
+        const { data: services } = await sb.from('services').select('*').order('name');
+        servicesCache = services || [];
+    }
+    const select = document.getElementById('editServicioSel');
+    select.innerHTML = servicesCache.map(s => 
+        `<option value="${s.id}" ${s.id === serviceId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+
+    document.getElementById('modalEdit').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('modalEdit').classList.add('hidden');
+}
+
+document.getElementById('editIngresoForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editRecordId').value;
+    const payload = {
+        service_id: document.getElementById('editServicioSel').value,
+        amount: parseFloat(document.getElementById('editMontoInput').value),
+        client_name: document.getElementById('editClienteInput').value || null,
+        payment_method: document.getElementById('editPagoInput').value,
+        record_date: new Date(document.getElementById('editFechaInput').value).toISOString()
+    };
+
+    const { error } = await sb.from('income_records').update(payload).eq('id', id);
+    if (error) return alert('Error al actualizar: ' + error.message);
+
+    closeEditModal();
+    if (currentProfile.role === 'admin') renderIngresosAdmin();
+    else renderMiHistorial();
+};
+
+async function deleteRecord(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este registro de ingreso?')) return;
+    const { error } = await sb.from('income_records').delete().eq('id', id);
+    if (error) return alert('Error al eliminar: ' + error.message);
+
+    if (currentProfile.role === 'admin') renderIngresosAdmin();
+    else renderMiHistorial();
+}
+
+// ----------------------------------------------------------------
+// SESIÓN Y CACHÉ INICIAL
+// ----------------------------------------------------------------
+async function loadSession() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return renderAuth();
+    
+    // Carga en paralelo del perfil y la caché de servicios para reducir latencia
+    const [profileRes, servicesRes] = await Promise.all([
+        sb.from('profiles').select('*').eq('id', session.user.id).single(),
+        sb.from('services').select('*').order('name')
+    ]);
+
+    if (profileRes.error || !profileRes.data) return renderPending();
+    currentProfile = profileRes.data;
+    if (servicesRes.data) servicesCache = servicesRes.data;
+
+    if (currentProfile.role === 'pendiente' || !currentProfile.active) return renderPending();
+    if (currentProfile.role === 'admin') renderUsuarios();
+    else renderRegistrarIngreso();
+}
+
+sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') renderAuth(); });
+loadSession();
+</script>
+</body>
+</html>
