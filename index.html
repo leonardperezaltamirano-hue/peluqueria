@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Peluquería</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif}
+  .tab-active{border-bottom:2px solid #7c3aed;color:#7c3aed;font-weight:600}
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ======================= CONFIGURACIÓN SUPABASE ======================= -->
+<script>
+  // 1. Ve a tu proyecto en supabase.com > Project Settings > API
+  // 2. Copia "Project URL" y "anon public key" y pégalos aquí:
+  const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
+  const SUPABASE_ANON_KEY = "TU_ANON_KEY_AQUI";
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+
+<div id="app" class="max-w-5xl mx-auto p-4"></div>
+
+<script>
+let currentProfile = null;
+
+const app = document.getElementById('app');
+const fmt = n => 'Bs. ' + Number(n || 0).toFixed(2);
+
+// ----------------------------------------------------------------
+// RENDER: PANTALLA DE LOGIN / REGISTRO
+// ----------------------------------------------------------------
+function renderAuth(mode = 'login') {
+  app.innerHTML = `
+    <div class="min-h-screen flex items-center justify-center" style="margin-top:8vh">
+      <div class="bg-white rounded-xl shadow-md p-8 w-full max-w-sm">
+        <h1 class="text-2xl font-bold text-center text-purple-700 mb-1">💇 Peluquería</h1>
+        <p class="text-center text-gray-500 mb-6 text-sm">Control de ingresos y servicios</p>
+        <div id="authMsg" class="text-sm mb-3"></div>
+        ${mode === 'login' ? `
+          <form id="loginForm" class="space-y-3">
+            <input required type="email" id="email" placeholder="Correo electrónico" class="w-full border rounded-lg px-3 py-2">
+            <input required type="password" id="password" placeholder="Contraseña" class="w-full border rounded-lg px-3 py-2">
+            <button class="w-full bg-purple-600 text-white rounded-lg py-2 font-semibold hover:bg-purple-700">Iniciar sesión</button>
+          </form>
+          <p class="text-center text-sm mt-4 text-gray-500">¿No tienes cuenta?
+            <a href="#" id="goRegister" class="text-purple-600 font-medium">Crear cuenta</a></p>
+        ` : `
+          <form id="registerForm" class="space-y-3">
+            <input required type="text" id="fullName" placeholder="Nombre completo" class="w-full border rounded-lg px-3 py-2">
+            <input required type="email" id="email" placeholder="Correo electrónico" class="w-full border rounded-lg px-3 py-2">
+            <input required type="password" id="password" placeholder="Contraseña (mín. 6 caracteres)" class="w-full border rounded-lg px-3 py-2">
+            <button class="w-full bg-purple-600 text-white rounded-lg py-2 font-semibold hover:bg-purple-700">Crear cuenta</button>
+          </form>
+          <p class="text-center text-sm mt-4 text-gray-500">¿Ya tienes cuenta?
+            <a href="#" id="goLogin" class="text-purple-600 font-medium">Inicia sesión</a></p>
+        `}
+      </div>
+    </div>
+  `;
+
+  const msg = (text, ok=false) => {
+    document.getElementById('authMsg').innerHTML =
+      `<div class="${ok ? 'text-green-600' : 'text-red-600'}">${text}</div>`;
+  };
+
+  if (mode === 'login') {
+    document.getElementById('goRegister').onclick = (e) => { e.preventDefault(); renderAuth('register'); };
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return msg(error.message);
+      await loadSession();
+    };
+  } else {
+    document.getElementById('goLogin').onclick = (e) => { e.preventDefault(); renderAuth('login'); };
+    document.getElementById('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const full_name = document.getElementById('fullName').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signUp({
+        email, password, options: { data: { full_name } }
+      });
+      if (error) return msg(error.message);
+      msg('Cuenta creada. Un administrador debe aprobar tu acceso antes de que puedas ingresar.', true);
+    };
+  }
+}
+
+// ----------------------------------------------------------------
+// RENDER: PENDIENTE DE APROBACIÓN
+// ----------------------------------------------------------------
+function renderPending() {
+  app.innerHTML = `
+    <div class="min-h-screen flex items-center justify-center" style="margin-top:12vh">
+      <div class="bg-white rounded-xl shadow-md p-8 text-center max-w-sm">
+        <h2 class="text-xl font-bold text-gray-700 mb-2">⏳ Cuenta pendiente</h2>
+        <p class="text-gray-500 mb-4">Tu cuenta aún no fue aprobada ni asignada a un rol por el administrador.</p>
+        <button id="logout" class="text-purple-600 font-medium">Cerrar sesión</button>
+      </div>
+    </div>`;
+  document.getElementById('logout').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
+}
+
+// ----------------------------------------------------------------
+// LAYOUT PRINCIPAL (header + contenido)
+// ----------------------------------------------------------------
+function layout(contentHtml, activeTab) {
+  const isAdmin = currentProfile.role === 'admin';
+  app.innerHTML = `
+    <div class="flex justify-between items-center py-4">
+      <div>
+        <h1 class="text-xl font-bold text-purple-700">💇 Peluquería</h1>
+        <p class="text-sm text-gray-500">${currentProfile.full_name} · <span class="capitalize">${currentProfile.role}</span></p>
+      </div>
+      <button id="logoutBtn" class="text-sm text-gray-500 hover:text-red-600">Cerrar sesión</button>
+    </div>
+    <div class="flex gap-4 border-b mb-4 text-sm" id="tabs">
+      ${isAdmin ? `
+        <button data-tab="usuarios" class="pb-2 px-1 ${activeTab==='usuarios'?'tab-active':''}">Usuarios</button>
+        <button data-tab="servicios" class="pb-2 px-1 ${activeTab==='servicios'?'tab-active':''}">Servicios</button>
+        <button data-tab="ingresos" class="pb-2 px-1 ${activeTab==='ingresos'?'tab-active':''}">Ingresos</button>
+      ` : `
+        <button data-tab="registrar" class="pb-2 px-1 ${activeTab==='registrar'?'tab-active':''}">Registrar ingreso</button>
+        <button data-tab="mishistorial" class="pb-2 px-1 ${activeTab==='mishistorial'?'tab-active':''}">Mi historial</button>
+      `}
+    </div>
+    <div id="content">${contentHtml}</div>
+  `;
+  document.getElementById('logoutBtn').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
+  document.querySelectorAll('#tabs button').forEach(btn => {
+    btn.onclick = () => {
+      const tab = btn.dataset.tab;
+      if (tab === 'usuarios') renderUsuarios();
+      if (tab === 'servicios') renderServicios();
+      if (tab === 'ingresos') renderIngresosAdmin();
+      if (tab === 'registrar') renderRegistrarIngreso();
+      if (tab === 'mishistorial') renderMiHistorial();
+    };
+  });
+}
+
+// ----------------------------------------------------------------
+// ADMIN: USUARIOS
+// ----------------------------------------------------------------
+async function renderUsuarios() {
+  layout('<p class="text-gray-400">Cargando...</p>', 'usuarios');
+  const { data: users, error } = await sb.from('profiles').select('*').order('created_at');
+  if (error) return app.insertAdjacentHTML('beforeend', `<p class="text-red-600">${error.message}</p>`);
+
+  const rows = users.map(u => `
+    <tr class="border-b">
+      <td class="py-2 px-2">${u.full_name}</td>
+      <td class="py-2 px-2">
+        <input data-id="${u.id}" class="roleInput border rounded px-2 py-1 text-sm w-32" value="${u.role}">
+      </td>
+      <td class="py-2 px-2 text-center">
+        <input type="checkbox" data-id="${u.id}" class="activeCheck" ${u.active ? 'checked' : ''}>
+      </td>
+      <td class="py-2 px-2">
+        <button data-id="${u.id}" class="saveUser text-purple-600 text-sm font-medium">Guardar</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('content').innerHTML = `
+    <p class="text-sm text-gray-500 mb-3">Asigna el rol (ej: <b>admin</b>, <b>peluquero</b>, <b>manicurista</b>, o el que necesites) y activa la cuenta para dar acceso.</p>
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-left">
+          <tr><th class="py-2 px-2">Nombre</th><th class="py-2 px-2">Rol</th><th class="py-2 px-2 text-center">Activo</th><th class="py-2 px-2"></th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  document.querySelectorAll('.saveUser').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const role = document.querySelector(`.roleInput[data-id="${id}"]`).value.trim();
+      const active = document.querySelector(`.activeCheck[data-id="${id}"]`).checked;
+      const { error } = await sb.from('profiles').update({ role, active }).eq('id', id);
+      btn.textContent = error ? 'Error' : 'Guardado ✓';
+      setTimeout(() => btn.textContent = 'Guardar', 1500);
+    };
+  });
+}
+
+// ----------------------------------------------------------------
+// ADMIN: SERVICIOS
+// ----------------------------------------------------------------
+async function renderServicios() {
+  layout('<p class="text-gray-400">Cargando...</p>', 'servicios');
+  const { data: services, error } = await sb.from('services').select('*').order('created_at');
+  if (error) return;
+
+  const rows = services.map(s => `
+    <tr class="border-b">
+      <td class="py-2 px-2">${s.name}</td>
+      <td class="py-2 px-2">${fmt(s.price)}</td>
+      <td class="py-2 px-2 text-center">
+        <input type="checkbox" data-id="${s.id}" class="svcActive" ${s.active ? 'checked' : ''}>
+      </td>
+      <td class="py-2 px-2">
+        <button data-id="${s.id}" class="delSvc text-red-500 text-sm">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+      <h3 class="font-semibold mb-2">Nuevo servicio</h3>
+      <form id="newServiceForm" class="flex flex-wrap gap-2">
+        <input required id="svcName" placeholder="Nombre del servicio" class="border rounded-lg px-3 py-2 flex-1 min-w-[150px]">
+        <input required type="number" step="0.01" id="svcPrice" placeholder="Precio (Bs.)" class="border rounded-lg px-3 py-2 w-32">
+        <button class="bg-purple-600 text-white rounded-lg px-4 py-2 font-medium">Agregar</button>
+      </form>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-left">
+          <tr><th class="py-2 px-2">Servicio</th><th class="py-2 px-2">Precio</th><th class="py-2 px-2 text-center">Activo</th><th class="py-2 px-2"></th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td class="py-3 px-2 text-gray-400" colspan="4">Sin servicios aún</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('newServiceForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('svcName').value;
+    const price = parseFloat(document.getElementById('svcPrice').value);
+    const { error } = await sb.from('services').insert({ name, price });
+    if (!error) renderServicios();
+  };
+  document.querySelectorAll('.svcActive').forEach(chk => {
+    chk.onchange = async () => {
+      await sb.from('services').update({ active: chk.checked }).eq('id', chk.dataset.id);
+    };
+  });
+  document.querySelectorAll('.delSvc').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('¿Eliminar este servicio?')) return;
+      const { error } = await sb.from('services').delete().eq('id', btn.dataset.id);
+      if (error) alert('No se puede eliminar: tiene ingresos registrados. Desactívalo en su lugar.');
+      else renderServicios();
+    };
+  });
+}
+
+// ----------------------------------------------------------------
+// ADMIN: INGRESOS (todos los empleados, con filtros y totales)
+// ----------------------------------------------------------------
+async function renderIngresosAdmin() {
+  layout('<p class="text-gray-400">Cargando...</p>', 'ingresos');
+
+  const { data: employees } = await sb.from('profiles').select('id, full_name').neq('role', 'pendiente');
+
+  const empOptions = (employees || []).map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-2 items-end">
+      <div>
+        <label class="text-xs text-gray-500 block">Empleado</label>
+        <select id="filtroEmpleado" class="border rounded-lg px-3 py-2"><option value="">Todos</option>${empOptions}</select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block">Desde</label>
+        <input type="date" id="filtroDesde" class="border rounded-lg px-3 py-2">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block">Hasta</label>
+        <input type="date" id="filtroHasta" class="border rounded-lg px-3 py-2">
+      </div>
+      <button id="filtrarBtn" class="bg-purple-600 text-white rounded-lg px-4 py-2 font-medium">Filtrar</button>
+    </div>
+    <div id="resumenTotales" class="mb-4"></div>
+    <div id="tablaIngresos" class="bg-white rounded-xl shadow-sm overflow-x-auto"></div>
+  `;
+
+  async function cargar() {
+    let query = sb.from('income_records')
+      .select('id, amount, client_name, payment_method, record_date, profiles(full_name), services(name)')
+      .order('record_date', { ascending: false });
+
+    const emp = document.getElementById('filtroEmpleado').value;
+    const desde = document.getElementById('filtroDesde').value;
+    const hasta = document.getElementById('filtroHasta').value;
+    if (emp) query = query.eq('employee_id', emp);
+    if (desde) query = query.gte('record_date', desde);
+    if (hasta) query = query.lte('record_date', hasta);
+
+    const { data, error } = await query;
+    if (error) { document.getElementById('tablaIngresos').innerHTML = `<p class="text-red-600 p-3">${error.message}</p>`; return; }
+
+    const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
+    const porEmpleado = {};
+    (data || []).forEach(r => {
+      const nombre = r.profiles?.full_name || '—';
+      porEmpleado[nombre] = (porEmpleado[nombre] || 0) + Number(r.amount);
+    });
+
+    document.getElementById('resumenTotales').innerHTML = `
+      <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 flex flex-wrap gap-6">
+        <div><p class="text-xs text-gray-500">Total general</p><p class="text-xl font-bold text-purple-700">${fmt(total)}</p></div>
+        ${Object.entries(porEmpleado).map(([n,t]) => `
+          <div><p class="text-xs text-gray-500">${n}</p><p class="font-semibold">${fmt(t)}</p></div>
+        `).join('')}
+      </div>
+    `;
+
+    const rows = (data || []).map(r => `
+      <tr class="border-b">
+        <td class="py-2 px-2">${r.record_date}</td>
+        <td class="py-2 px-2">${r.profiles?.full_name || '—'}</td>
+        <td class="py-2 px-2">${r.services?.name || '—'}</td>
+        <td class="py-2 px-2">${r.client_name || '—'}</td>
+        <td class="py-2 px-2 font-medium">${fmt(r.amount)}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('tablaIngresos').innerHTML = `
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-left">
+          <tr><th class="py-2 px-2">Fecha</th><th class="py-2 px-2">Empleado</th><th class="py-2 px-2">Servicio</th><th class="py-2 px-2">Cliente</th><th class="py-2 px-2">Monto</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td class="py-3 px-2 text-gray-400" colspan="5">Sin registros</td></tr>'}</tbody>
+      </table>
+    `;
+  }
+
+  document.getElementById('filtrarBtn').onclick = cargar;
+  cargar();
+}
+
+// ----------------------------------------------------------------
+// EMPLEADO: REGISTRAR INGRESO
+// ----------------------------------------------------------------
+async function renderRegistrarIngreso() {
+  layout('<p class="text-gray-400">Cargando...</p>', 'registrar');
+  const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
+
+  const options = (services || []).map(s => `<option value="${s.id}" data-price="${s.price}">${s.name} — ${fmt(s.price)}</option>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="bg-white rounded-xl shadow-sm p-5 max-w-md">
+      <h3 class="font-semibold mb-3">Registrar nuevo ingreso</h3>
+      <form id="ingresoForm" class="space-y-3">
+        <select required id="servicioSel" class="w-full border rounded-lg px-3 py-2">
+          <option value="">Selecciona un servicio</option>${options}
+        </select>
+        <input required type="number" step="0.01" id="montoInput" placeholder="Monto (Bs.)" class="w-full border rounded-lg px-3 py-2">
+        <input id="clienteInput" placeholder="Nombre del cliente (opcional)" class="w-full border rounded-lg px-3 py-2">
+        <select id="pagoInput" class="w-full border rounded-lg px-3 py-2">
+          <option value="efectivo">Efectivo</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="qr">QR / Transferencia</option>
+        </select>
+        <input type="date" id="fechaInput" class="w-full border rounded-lg px-3 py-2" value="${new Date().toISOString().slice(0,10)}">
+        <button class="w-full bg-purple-600 text-white rounded-lg py-2 font-semibold">Guardar ingreso</button>
+      </form>
+      <p id="okMsg" class="text-green-600 text-sm mt-2"></p>
+    </div>
+  `;
+
+  document.getElementById('servicioSel').onchange = (e) => {
+    const price = e.target.selectedOptions[0]?.dataset.price;
+    if (price) document.getElementById('montoInput').value = price;
+  };
+
+  document.getElementById('ingresoForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      employee_id: currentProfile.id,
+      service_id: document.getElementById('servicioSel').value,
+      amount: parseFloat(document.getElementById('montoInput').value),
+      client_name: document.getElementById('clienteInput').value || null,
+      payment_method: document.getElementById('pagoInput').value,
+      record_date: document.getElementById('fechaInput').value
+    };
+    const { error } = await sb.from('income_records').insert(payload);
+    if (error) return alert(error.message);
+    document.getElementById('ingresoForm').reset();
+    document.getElementById('fechaInput').value = new Date().toISOString().slice(0,10);
+    document.getElementById('okMsg').textContent = 'Ingreso registrado ✓';
+    setTimeout(() => document.getElementById('okMsg').textContent = '', 2000);
+  };
+}
+
+// ----------------------------------------------------------------
+// EMPLEADO: MI HISTORIAL
+// ----------------------------------------------------------------
+async function renderMiHistorial() {
+  layout('<p class="text-gray-400">Cargando...</p>', 'mishistorial');
+  const { data, error } = await sb.from('income_records')
+    .select('id, amount, client_name, payment_method, record_date, services(name)')
+    .eq('employee_id', currentProfile.id)
+    .order('record_date', { ascending: false });
+
+  if (error) { document.getElementById('content').innerHTML = `<p class="text-red-600">${error.message}</p>`; return; }
+
+  const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const rows = (data || []).map(r => `
+    <tr class="border-b">
+      <td class="py-2 px-2">${r.record_date}</td>
+      <td class="py-2 px-2">${r.services?.name || '—'}</td>
+      <td class="py-2 px-2">${r.client_name || '—'}</td>
+      <td class="py-2 px-2 capitalize">${r.payment_method || '—'}</td>
+      <td class="py-2 px-2 font-medium">${fmt(r.amount)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4 inline-block">
+      <p class="text-xs text-gray-500">Mi total acumulado</p>
+      <p class="text-xl font-bold text-purple-700">${fmt(total)}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-left">
+          <tr><th class="py-2 px-2">Fecha</th><th class="py-2 px-2">Servicio</th><th class="py-2 px-2">Cliente</th><th class="py-2 px-2">Pago</th><th class="py-2 px-2">Monto</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td class="py-3 px-2 text-gray-400" colspan="5">Aún no tienes registros</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------
+// SESIÓN
+// ----------------------------------------------------------------
+async function loadSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return renderAuth();
+
+  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if (error || !profile) return renderPending();
+
+  currentProfile = profile;
+  if (profile.role === 'pendiente' || !profile.active) return renderPending();
+
+  if (profile.role === 'admin') renderUsuarios();
+  else renderRegistrarIngreso();
+}
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') renderAuth();
+});
+
+loadSession();
+</script>
+</body>
+</html>
