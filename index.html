@@ -1,883 +1,663 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es" class="light">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Peluquería · Control de Ingresos</title>
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Supabase JS Library -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- Google Fonts: Plus Jakarta Sans & Inter -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-        },
-        colors: {
-          brand: {
-            50: '#f5f3ff',
-            100: '#ede9fe',
-            200: '#ddd6fe',
-            300: '#c4b5fd',
-            400: '#a78bfa',
-            500: '#8b5cf6',
-            600: '#7c3aed',
-            700: '#6d28d9',
-            800: '#5b21b6',
-            900: '#4c1d95',
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Peluquería · Control de Ingresos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
         }
-      }
-    }
-  }
-</script>
-<style>
-  * { -webkit-tap-highlight-color: transparent; }
-  body {
-    background: #faf8ff;
-    background-image: 
-      radial-gradient(at 10% 10%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
-      radial-gradient(at 90% 90%, rgba(192, 38, 211, 0.06) 0px, transparent 50%);
-    background-attachment: fixed;
-  }
-  .glass-card {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(221, 214, 254, 0.6);
-  }
-  .input-styled {
-    background-color: #ffffff;
-    border: 1.5px solid #e2d9f3;
-    transition: all 0.2s ease;
-  }
-  .input-styled:focus {
-    border-color: #8b5cf6;
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
-  }
-  .btn-gradient {
-    background: linear-gradient(135deg, #7c3aed 0%, #a21caf 100%);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .btn-gradient:hover {
-    filter: brightness(1.08);
-    box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.35);
-  }
-  .btn-gradient:active {
-    transform: scale(0.98);
-  }
-  
-  @media (max-width: 640px) {
-    .responsive-table thead { display: none; }
-    .responsive-table tr {
-      display: block;
-      background: #ffffff;
-      border-radius: 1rem;
-      margin-bottom: 0.75rem;
-      border: 1px solid #ede9fe;
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.04);
-      padding: 0.75rem;
-    }
-    .responsive-table td {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.4rem 0.25rem;
-      border: none !important;
-      font-size: 0.875rem;
-    }
-    .responsive-table td::before {
-      content: attr(data-label);
-      font-weight: 700;
-      color: #7c3aed;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-  }
-
-  ::-webkit-scrollbar { height: 6px; width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: #c4b5fd; }
-</style>
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @media (max-width:640px){
+            .responsive-table thead{display:none}
+            .responsive-table tr{display:block;background:#fff;border-radius:1rem;margin-bottom:.6rem;box-shadow:0 1px 6px rgba(0,0,0,.05);padding:.75rem}
+            .responsive-table td{display:flex;justify-content:space-between;align-items:center;padding:.4rem .25rem;border:none !important;font-size:.85rem}
+            .responsive-table td::before{content:attr(data-label);font-weight:700;color:#64748b;font-size:.75rem;margin-right:.5rem}
+        }
+    </style>
 </head>
-<body class="min-h-screen text-slate-800 pb-24 md:pb-8 antialiased selection:bg-purple-500 selection:text-white">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-white">
 
 <!-- ======================= CONFIGURACIÓN SUPABASE ======================= -->
 <script>
-  const SUPABASE_URL = "https://safpookcpmryhqwbkjrn.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZnBvb2tjcG1yeWhxd2JranJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMjc3NjgsImV4cCI6MjEwOTgwMzc2OH0.TbQ96Rry89yjQ3_8kQV39z3AWb_pXY0xBOI3SQHqkM8";
+    const SUPABASE_URL = "https://safpookcpmryhqwbkjrn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZnBvb2tjcG1yeWhxd2JranJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMjc3NjgsImV4cCI6MjEwOTgwMzc2OH0.TbQ96Rry89yjQ3_8kQV39z3AWb_pXY0xBOI3SQHqkM8";
 
-  const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 
-<div id="app" class="max-w-5xl mx-auto px-4 sm:px-6 pt-4"></div>
+<!-- Header Móvil / Desktop -->
+<header id="mainHeader" class="bg-slate-900 text-white sticky top-0 z-40 shadow-md hidden">
+    <div class="max-w-md md:max-w-3xl mx-auto px-4 py-3.5 flex justify-between items-center">
+        <div class="flex items-center space-x-2.5">
+            <div class="bg-amber-500 text-slate-900 w-9 h-9 rounded-xl font-bold flex items-center justify-center shadow-md">
+                <i class="fa-solid fa-scissors text-base"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-sm leading-tight text-white">Peluquería</h1>
+                <p id="headerSub" class="text-[11px] text-slate-400 font-medium">Control de Ingresos</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button id="logoutBtn" title="Cerrar sesión" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-xl transition flex items-center space-x-1.5 border border-slate-700 shadow-sm active:scale-95">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span class="hidden sm:inline">Salir</span>
+            </button>
+        </div>
+    </div>
+</header>
 
-<!-- Modal Container for Custom Editing & Notifications -->
-<div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-200">
-  <div id="modalContainer" class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 transform scale-95 transition-all duration-200 border border-purple-100"></div>
+<!-- Contenido Principal -->
+<main class="max-w-md md:max-w-3xl mx-auto w-full flex-1 px-4 py-4 pb-28">
+    <div id="app"></div>
+</main>
+
+<!-- Barra de Navegación Inferior -->
+<nav id="mobileNav" class="bg-white/95 backdrop-blur-md border-t border-slate-200 fixed bottom-0 left-0 right-0 z-40 shadow-lg hidden">
+    <div id="tabsContainer" class="max-w-md md:max-w-3xl mx-auto flex justify-around py-2.5 px-4"></div>
+</nav>
+
+<!-- MODAL: EDITAR INGRESO -->
+<div id="modalEdit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-in fade-in duration-200">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+            <div class="flex items-center space-x-2">
+                <div class="bg-amber-100 text-amber-700 p-2 rounded-xl"><i class="fa-solid fa-pen-to-square"></i></div>
+                <h3 class="font-extrabold text-slate-900 text-base">Editar Ingreso</h3>
+            </div>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <form id="editIngresoForm" class="space-y-3">
+            <input type="hidden" id="editRecordId">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Servicio</label>
+                <select id="editServicioSel" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Monto (Bs.)</label>
+                <input required type="number" step="0.01" id="editMontoInput" class="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-amber-600 rounded-xl px-3 py-2.5 focus:border-amber-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Cliente</label>
+                <input id="editClienteInput" placeholder="Nombre cliente" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Forma de Pago</label>
+                <select id="editPagoInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="tarjeta">💳 Tarjeta</option>
+                    <option value="qr">📱 QR / Transferencia</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Fecha</label>
+                <input type="date" id="editFechaInput" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button type="button" onclick="closeEditModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">Cancelar</button>
+                <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
 </div>
-
-<!-- Barra de navegación inferior (solo móvil) -->
-<nav id="mobileNav" class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-purple-100 flex justify-around py-2 hidden z-40 shadow-lg shadow-purple-900/10" style="padding-bottom:env(safe-area-inset-bottom, 8px)"></nav>
 
 <script>
 let currentProfile = null;
 const app = document.getElementById('app');
 const mobileNav = document.getElementById('mobileNav');
-const modalOverlay = document.getElementById('modalOverlay');
-const modalContainer = document.getElementById('modalContainer');
+const mainHeader = document.getElementById('mainHeader');
+const tabsContainer = document.getElementById('tabsContainer');
 
-const fmt = n => 'Bs. ' + Number(n || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-function logoHeader(sub) {
-  return `
-    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-700 via-purple-600 to-fuchsia-600 text-white p-6 md:p-7 mb-6 shadow-xl shadow-purple-600/15">
-      <div class="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-      <div class="absolute right-20 -bottom-10 w-32 h-32 bg-fuchsia-400/20 rounded-full blur-xl pointer-events-none"></div>
-      
-      <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase text-purple-100 mb-2">
-            <span>✨</span> System Dashboard
-          </div>
-          <h1 class="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5">
-            <span>💇‍♀️</span> Peluquería
-          </h1>
-          <p class="text-purple-100/90 text-sm font-medium mt-1">${sub}</p>
-        </div>
-      </div>
-    </div>`;
-}
-
-// ----------------------------------------------------------------
-// MODAL SYSTEM (REPLACES ALERT/CONFIRM)
-// ----------------------------------------------------------------
-function openModal(html) {
-  modalContainer.innerHTML = html;
-  modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
-  modalContainer.classList.remove('scale-95');
-  modalContainer.classList.add('scale-100');
-}
-
-function closeModal() {
-  modalOverlay.classList.add('opacity-0', 'pointer-events-none');
-  modalContainer.classList.remove('scale-100');
-  modalContainer.classList.add('scale-95');
-}
-
-modalOverlay.onclick = (e) => {
-  if (e.target === modalOverlay) closeModal();
-};
-
-function showConfirm(title, message, onConfirm) {
-  openModal(`
-    <div class="text-center">
-      <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">⚠️</div>
-      <h3 class="text-lg font-bold text-slate-800 mb-2">${title}</h3>
-      <p class="text-slate-500 text-sm mb-6">${message}</p>
-      <div class="flex gap-3 justify-center">
-        <button id="cancelModalBtn" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition">Cancelar</button>
-        <button id="confirmModalBtn" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/20">Sí, continuar</button>
-      </div>
-    </div>
-  `);
-  document.getElementById('cancelModalBtn').onclick = closeModal;
-  document.getElementById('confirmModalBtn').onclick = async () => {
-    closeModal();
-    await onConfirm();
-  };
-}
+const fmt = n => 'Bs. ' + Number(n || 0).toFixed(2);
 
 // ----------------------------------------------------------------
 // RENDER: LOGIN / REGISTRO
 // ----------------------------------------------------------------
 function renderAuth(mode = 'login') {
-  mobileNav.classList.add('hidden');
-  app.innerHTML = `
-    <div class="min-h-[85vh] flex items-center justify-center px-4 py-8">
-      <div class="w-full max-w-md">
-        <div class="text-center mb-8">
-          <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-purple-600 to-fuchsia-500 rounded-3xl shadow-xl shadow-purple-500/25 text-4xl mb-4 transform hover:rotate-6 transition duration-300">
-            💇‍♀️
-          </div>
-          <h1 class="text-3xl font-black tracking-tight text-slate-900">Control de Ingresos</h1>
-          <p class="text-slate-500 text-sm mt-1">Gestión integral de servicios y ventas</p>
+    mainHeader.classList.add('hidden');
+    mobileNav.classList.add('hidden');
+    app.innerHTML = `
+        <div class="min-h-[80vh] flex items-center justify-center">
+            <div class="w-full max-w-sm">
+                <div class="text-center mb-6">
+                    <div class="bg-amber-500 text-slate-900 w-16 h-16 rounded-2xl font-black text-2xl flex items-center justify-center shadow-lg mx-auto mb-3">
+                        <i class="fa-solid fa-scissors"></i>
+                    </div>
+                    <h1 class="text-xl font-extrabold text-slate-900">Peluquería</h1>
+                    <p class="text-slate-500 text-xs font-medium">Control de ingresos y servicios</p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/70 space-y-4">
+                    <div id="authMsg" class="text-xs"></div>
+                    ${mode === 'login' ? `
+                        <form id="loginForm" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                                <input required type="email" id="email" placeholder="correo@ejemplo.com" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+                                <input required type="password" id="password" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:outline-none focus:border-amber-500">
+                            </div>
+                            <button class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-3 rounded-xl text-xs shadow-md transition active:scale-95">Iniciar sesión</button>
+                        </form>
+                        <p class="text-center text-xs text-slate-400 font-medium pt-2">¿No tienes cuenta?
+                            <a href="#" id="goRegister" class="text-amber-600 font-bold hover:underline">Crear cuenta</a>
+                        </p>
+                    ` : `
+                        <form id="registerForm" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Completo</label>
+                                <input required type="text" id="fullName" placeholder="Tu nombre" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                                <input required type="email" id="email" placeholder="correo@ejemplo.com" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+                                <input required type="password" id="password" placeholder="Mínimo 6 caracteres" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:outline-none focus:border-amber-500">
+                            </div>
+                            <button class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-3 rounded-xl text-xs shadow-md transition active:scale-95">Crear cuenta</button>
+                        </form>
+                        <p class="text-center text-xs text-slate-400 font-medium pt-2">¿Ya tienes cuenta?
+                            <a href="#" id="goLogin" class="text-amber-600 font-bold hover:underline">Inicia sesión</a>
+                        </p>
+                    `}
+                </div>
+            </div>
         </div>
+    `;
 
-        <div class="glass-card rounded-3xl p-7 shadow-xl shadow-purple-900/5">
-          <div id="authMsg" class="text-sm mb-4"></div>
-          ${mode === 'login' ? `
-            <form id="loginForm" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Correo electrónico</label>
-                <input required type="email" id="email" placeholder="tu@ejemplo.com" class="input-styled w-full rounded-xl px-4 py-3 text-sm outline-none">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Contraseña</label>
-                <input required type="password" id="password" placeholder="••••••••" class="input-styled w-full rounded-xl px-4 py-3 text-sm outline-none">
-              </div>
-              <button class="w-full btn-gradient text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-600/20 text-sm mt-2">
-                Iniciar sesión
-              </button>
-            </form>
-            <p class="text-center text-sm mt-6 text-slate-500">¿No tienes cuenta?
-              <a href="#" id="goRegister" class="text-purple-600 font-bold hover:underline">Crear cuenta</a>
-            </p>
-          ` : `
-            <form id="registerForm" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Nombre completo</label>
-                <input required type="text" id="fullName" placeholder="Ej. María López" class="input-styled w-full rounded-xl px-4 py-3 text-sm outline-none">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Correo electrónico</label>
-                <input required type="email" id="email" placeholder="tu@ejemplo.com" class="input-styled w-full rounded-xl px-4 py-3 text-sm outline-none">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Contraseña</label>
-                <input required type="password" id="password" placeholder="Mínimo 6 caracteres" class="input-styled w-full rounded-xl px-4 py-3 text-sm outline-none">
-              </div>
-              <button class="w-full btn-gradient text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-600/20 text-sm mt-2">
-                Crear cuenta
-              </button>
-            </form>
-            <p class="text-center text-sm mt-6 text-slate-500">¿Ya tienes cuenta?
-              <a href="#" id="goLogin" class="text-purple-600 font-bold hover:underline">Inicia sesión</a>
-            </p>
-          `}
-        </div>
-      </div>
-    </div>
-  `;
-
-  const msg = (text, ok = false) => {
-    document.getElementById('authMsg').innerHTML =
-      `<div class="rounded-xl px-4 py-3 text-sm font-medium ${ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">${text}</div>`;
-  };
-
-  if (mode === 'login') {
-    document.getElementById('goRegister').onclick = (e) => { e.preventDefault(); renderAuth('register'); };
-    document.getElementById('loginForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) return msg(error.message);
-      await loadSession();
+    const msg = (text, ok=false) => {
+        document.getElementById('authMsg').innerHTML =
+            `<div class="rounded-xl px-3 py-2 font-medium ${ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'}">${text}</div>`;
     };
-  } else {
-    document.getElementById('goLogin').onclick = (e) => { e.preventDefault(); renderAuth('login'); };
-    document.getElementById('registerForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const full_name = document.getElementById('fullName').value;
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name } } });
-      if (error) return msg(error.message);
-      msg('Cuenta creada con éxito. Un administrador debe aprobar tu acceso.', true);
-    };
-  }
+
+    if (mode === 'login') {
+        document.getElementById('goRegister').onclick = (e) => { e.preventDefault(); renderAuth('register'); };
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) return msg(error.message);
+            await loadSession();
+        };
+    } else {
+        document.getElementById('goLogin').onclick = (e) => { e.preventDefault(); renderAuth('login'); };
+        document.getElementById('registerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const full_name = document.getElementById('fullName').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name } } });
+            if (error) return msg(error.message);
+            msg('Cuenta creada. Un administrador debe aprobar tu acceso.', true);
+        };
+    }
 }
 
 function renderPending() {
-  mobileNav.classList.add('hidden');
-  app.innerHTML = `
-    <div class="min-h-[80vh] flex items-center justify-center text-center px-4">
-      <div class="glass-card p-8 rounded-3xl max-w-sm w-full shadow-xl">
-        <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">⏳</div>
-        <h2 class="text-xl font-bold text-slate-800 mb-2">Cuenta pendiente</h2>
-        <p class="text-slate-500 text-sm mb-6 leading-relaxed">Tu cuenta ha sido creada exitosamente. Un administrador asignará tu rol pronto.</p>
-        <button id="logout" class="w-full btn-gradient text-white font-bold px-5 py-3 rounded-xl text-sm">Cerrar sesión</button>
-      </div>
-    </div>`;
-  document.getElementById('logout').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
+    mainHeader.classList.add('hidden');
+    mobileNav.classList.add('hidden');
+    app.innerHTML = `
+        <div class="min-h-[70vh] flex items-center justify-center text-center px-4">
+            <div class="bg-white rounded-2xl p-8 max-w-sm shadow-sm border border-slate-200/70">
+                <div class="bg-amber-100 text-amber-700 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-xl mb-3"><i class="fa-solid fa-hourglass-half"></i></div>
+                <h2 class="text-base font-extrabold text-slate-900 mb-1">Cuenta pendiente</h2>
+                <p class="text-slate-500 mb-5 text-xs font-medium">Tu cuenta aún no fue aprobada ni asignada a un rol por el administrador.</p>
+                <button id="logout" class="bg-slate-900 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md transition active:scale-95">Cerrar sesión</button>
+            </div>
+        </div>`;
+    document.getElementById('logout').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
 }
 
 // ----------------------------------------------------------------
 // LAYOUT PRINCIPAL
 // ----------------------------------------------------------------
-function tabsFor(isAdmin) {
-  return isAdmin
-    ? [['usuarios','👥','Usuarios'],['servicios','✂️','Servicios'],['ingresos','💰','Ingresos']]
-    : [['registrar','➕','Registrar'],['mishistorial','📋','Historial']];
+function tabsFor(isAdmin){
+    return isAdmin
+        ? [['usuarios','fa-users','Usuarios'],['servicios','fa-scissors','Servicios'],['ingresos','fa-cash-register','Ingresos']]
+        : [['registrar','fa-circle-plus','Registrar'],['mishistorial','fa-clock-rotate-left','Historial']];
 }
 
 function layout(activeTab) {
-  const isAdmin = currentProfile.role === 'admin';
-  const tabs = tabsFor(isAdmin);
+    const isAdmin = currentProfile.role === 'admin';
+    const tabs = tabsFor(isAdmin);
 
-  app.innerHTML = `
-    ${logoHeader(`
-      <div class="flex items-center gap-2 mt-1">
-        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="font-semibold">${currentProfile.full_name}</span> 
-        <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border border-white/20">${currentProfile.role}</span>
-      </div>
-    `)}
-    <div class="flex items-center justify-between gap-4 mb-6">
-      <div class="hidden md:flex gap-1.5 bg-white/70 backdrop-blur-md p-1.5 rounded-2xl border border-purple-100 shadow-sm">
-        ${tabs.map(([key,icon,label]) => `
-          <button data-tab="${key}" class="px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-2 ${key===activeTab ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-md shadow-purple-600/20' : 'text-slate-600 hover:text-purple-700 hover:bg-purple-50/50'}">
-            <span>${icon}</span> ${label}
-          </button>
-        `).join('')}
-      </div>
-      <div></div>
-      <button id="logoutBtn" class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-3.5 py-2 rounded-xl transition shadow-sm">
-        <span>Cerrar sesión</span>
-        <span>↩</span>
-      </button>
-    </div>
-    <div id="content"></div>
-  `;
+    mainHeader.classList.remove('hidden');
+    document.getElementById('headerSub').innerHTML = `${currentProfile.full_name} · <span class="capitalize font-bold text-amber-400">${currentProfile.role}</span>`;
 
-  mobileNav.classList.remove('hidden');
-  mobileNav.innerHTML = tabs.map(([key,icon,label]) => `
-    <button data-tab="${key}" class="flex flex-col items-center justify-center text-[11px] font-bold px-3 py-1 rounded-xl transition-all ${key===activeTab ? 'text-purple-600 scale-105' : 'text-slate-400 hover:text-slate-600'}">
-      <span class="text-xl mb-0.5">${icon}</span>${label}
-    </button>`).join('');
+    mobileNav.classList.remove('hidden');
+    tabsContainer.innerHTML = tabs.map(([key,icon,label]) => `
+        <button data-tab="${key}" class="flex flex-col items-center justify-center text-xs transition ${key===activeTab?'text-amber-600 font-bold':'text-slate-400 hover:text-slate-600 font-medium'}">
+            <i class="fa-solid ${icon} text-lg mb-0.5"></i>
+            <span class="text-[11px]">${label}</span>
+        </button>`).join('');
 
-  document.getElementById('logoutBtn').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
+    document.getElementById('logoutBtn').onclick = async () => { await sb.auth.signOut(); renderAuth(); };
 
-  const go = (tab) => {
-    if (tab === 'usuarios') renderUsuarios();
-    if (tab === 'servicios') renderServicios();
-    if (tab === 'ingresos') renderIngresosAdmin();
-    if (tab === 'registrar') renderRegistrarIngreso();
-    if (tab === 'mishistorial') renderMiHistorial();
-  };
-  document.querySelectorAll('[data-tab]').forEach(btn => btn.onclick = () => go(btn.dataset.tab));
-}
-
-// Helper: Payment Method Badge
-function getPaymentBadge(method) {
-  const m = (method || '').toLowerCase();
-  if (m.includes('efectivo')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">💵 Efectivo</span>`;
-  if (m.includes('tarjeta')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">💳 Tarjeta</span>`;
-  if (m.includes('qr') || m.includes('transferencia')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">📱 QR / Transf.</span>`;
-  return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 capitalize">${method || '—'}</span>`;
-}
-
-// ----------------------------------------------------------------
-// MODAL: EDITAR INGRESO (ADMIN & EMPLEADO)
-// ----------------------------------------------------------------
-async function openEditIncomeModal(incomeId, onSaved) {
-  const { data: record, error } = await sb.from('income_records').select('*').eq('id', incomeId).single();
-  if (error || !record) return;
-
-  const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
-  const serviceOptions = (services || []).map(s => 
-    `<option value="${s.id}" ${s.id === record.service_id ? 'selected' : ''}>${s.name} — ${fmt(s.price)}</option>`
-  ).join('');
-
-  openModal(`
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">✏️ Editar Ingreso</h3>
-      <button id="closeModalCross" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
-    </div>
-    <form id="editIncomeForm" class="space-y-3.5 text-left">
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Servicio</label>
-        <select required id="editServicio" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">${serviceOptions}</select>
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Monto (Bs.)</label>
-        <input required type="number" step="0.01" id="editMonto" value="${record.amount}" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Cliente</label>
-        <input id="editCliente" value="${record.client_name || ''}" placeholder="Nombre del cliente" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Método de pago</label>
-        <select id="editPago" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-          <option value="efectivo" ${record.payment_method === 'efectivo' ? 'selected' : ''}>💵 Efectivo</option>
-          <option value="tarjeta" ${record.payment_method === 'tarjeta' ? 'selected' : ''}>💳 Tarjeta</option>
-          <option value="qr" ${record.payment_method === 'qr' ? 'selected' : ''}>📱 QR / Transferencia</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Fecha</label>
-        <input type="date" id="editFecha" value="${record.record_date}" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div class="flex gap-2 justify-end mt-5 pt-2 border-t border-slate-100">
-        <button type="button" id="cancelEditBtn" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50">Cancelar</button>
-        <button type="submit" class="btn-gradient px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md shadow-purple-600/20">Guardar Cambios</button>
-      </div>
-    </form>
-  `);
-
-  document.getElementById('closeModalCross').onclick = closeModal;
-  document.getElementById('cancelEditBtn').onclick = closeModal;
-  document.getElementById('editIncomeForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const updated = {
-      service_id: document.getElementById('editServicio').value,
-      amount: parseFloat(document.getElementById('editMonto').value),
-      client_name: document.getElementById('editCliente').value || null,
-      payment_method: document.getElementById('editPago').value,
-      record_date: document.getElementById('editFecha').value
+    const go = (tab) => {
+        if (tab === 'usuarios') renderUsuarios();
+        if (tab === 'servicios') renderServicios();
+        if (tab === 'ingresos') renderIngresosAdmin();
+        if (tab === 'registrar') renderRegistrarIngreso();
+        if (tab === 'mishistorial') renderMiHistorial();
     };
-    const { error: updateErr } = await sb.from('income_records').update(updated).eq('id', incomeId);
-    if (!updateErr) {
-      closeModal();
-      if (onSaved) onSaved();
-    }
-  };
+    document.querySelectorAll('[data-tab]').forEach(btn => btn.onclick = () => go(btn.dataset.tab));
 }
 
 // ----------------------------------------------------------------
 // ADMIN: USUARIOS
 // ----------------------------------------------------------------
 async function renderUsuarios() {
-  layout('usuarios');
-  const { data: users, error } = await sb.from('profiles').select('*').order('created_at');
-  const content = document.getElementById('content');
-  if (error) return content.innerHTML = `<p class="text-rose-600 p-4 font-semibold">${error.message}</p>`;
+    layout('usuarios');
+    const { data: users, error } = await sb.from('profiles').select('*').order('created_at');
+    
+    app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
+    const content = document.getElementById('content');
+    if (error) return content.innerHTML = `<p class="text-rose-600 text-xs font-bold">${error.message}</p>`;
 
-  const rows = users.map(u => `
-    <tr class="border-b border-purple-100/60 hover:bg-purple-50/30 transition">
-      <td data-label="Nombre" class="py-3 px-4 font-bold text-slate-800">${u.full_name}</td>
-      <td data-label="Rol" class="py-3 px-4">
-        <input data-id="${u.id}" class="roleInput input-styled rounded-lg text-xs font-semibold px-3 py-1.5 w-32" value="${u.role}">
-      </td>
-      <td data-label="Activo" class="py-3 px-4">
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" data-id="${u.id}" class="activeCheck peer sr-only" ${u.active ? 'checked' : ''}>
-          <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-        </label>
-      </td>
-      <td data-label="Acción" class="py-3 px-4 text-right">
-        <button data-id="${u.id}" class="saveUser bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold px-3 py-1.5 transition">Guardar ✓</button>
-      </td>
-    </tr>`).join('');
+    const rows = users.map(u => `
+        <tr class="border-b border-slate-100">
+            <td data-label="Nombre" class="py-3 px-3 font-bold text-slate-800">${u.full_name}</td>
+            <td data-label="Rol" class="py-3 px-3">
+                <input data-id="${u.id}" class="roleInput bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl px-2.5 py-1.5 focus:border-amber-500 outline-none w-full sm:w-auto" value="${u.role}">
+            </td>
+            <td data-label="Activo" class="py-3 px-3">
+                <input type="checkbox" data-id="${u.id}" class="activeCheck w-5 h-5 accent-amber-500 rounded cursor-pointer" ${u.active ? 'checked' : ''}>
+            </td>
+            <td data-label="Acción" class="py-3 px-3">
+                <button data-id="${u.id}" class="saveUser bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition active:scale-95">Guardar</button>
+            </td>
+        </tr>`).join('');
 
-  content.innerHTML = `
-    <div class="glass-card rounded-2xl p-4 mb-5 text-sm text-purple-900/80 flex items-start gap-3 border border-purple-100">
-      <span class="text-xl">💡</span>
-      <p class="leading-relaxed">Asigna un rol (ej. <b>peluquero</b>, <b>manicurista</b>, <b>admin</b>) y activa el interruptor para autorizar el acceso a la plataforma.</p>
-    </div>
-    <div class="glass-card rounded-3xl shadow-xl shadow-purple-900/5 overflow-hidden border border-purple-100">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm responsive-table">
-          <thead class="bg-gradient-to-r from-purple-50 to-indigo-50/50 text-purple-900 text-left font-bold uppercase text-xs tracking-wider border-b border-purple-100">
-            <tr>
-              <th class="py-3.5 px-4">Nombre</th>
-              <th class="py-3.5 px-4">Rol</th>
-              <th class="py-3.5 px-4">Activo</th>
-              <th class="py-3.5 px-4 text-right">Acción</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-purple-100/50">${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
+    content.innerHTML = `
+        <div class="bg-amber-50 border border-amber-200/80 p-3.5 rounded-2xl text-xs text-amber-900 font-medium flex items-start space-x-2">
+            <i class="fa-solid fa-lightbulb text-amber-600 text-sm mt-0.5"></i>
+            <span>Asigna un rol (ej. <b>peluquero</b>, <b>manicurista</b>, <b>admin</b>) y activa la casilla para dar acceso a los usuarios.</span>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Nombre</th><th class="py-3 px-3">Rol</th><th class="py-3 px-3">Activo</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
 
-  document.querySelectorAll('.saveUser').forEach(btn => btn.onclick = async () => {
-    const id = btn.dataset.id;
-    const role = document.querySelector(`.roleInput[data-id="${id}"]`).value.trim();
-    const active = document.querySelector(`.activeCheck[data-id="${id}"]`).checked;
-    const { error } = await sb.from('profiles').update({ role, active }).eq('id', id);
-    btn.textContent = error ? 'Error ✗' : '¡Guardado!';
-    btn.className = error 
-      ? 'bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold px-3 py-1.5 transition'
-      : 'bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold px-3 py-1.5 transition';
-    setTimeout(() => {
-      btn.textContent = 'Guardar ✓';
-      btn.className = 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold px-3 py-1.5 transition';
-    }, 1500);
-  });
+    document.querySelectorAll('.saveUser').forEach(btn => btn.onclick = async () => {
+        const id = btn.dataset.id;
+        const role = document.querySelector(`.roleInput[data-id="${id}"]`).value.trim();
+        const active = document.querySelector(`.activeCheck[data-id="${id}"]`).checked;
+        const { error } = await sb.from('profiles').update({ role, active }).eq('id', id);
+        btn.textContent = error ? 'Error ✗' : 'Guardado ✓';
+        setTimeout(() => btn.textContent = 'Guardar', 1500);
+    });
 }
 
 // ----------------------------------------------------------------
 // ADMIN: SERVICIOS
 // ----------------------------------------------------------------
 async function renderServicios() {
-  layout('servicios');
-  const { data: services, error } = await sb.from('services').select('*').order('created_at');
-  const content = document.getElementById('content');
-  if (error) return;
+    layout('servicios');
+    const { data: services, error } = await sb.from('services').select('*').order('created_at');
+    
+    app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
+    const content = document.getElementById('content');
+    if (error) return;
 
-  const rows = (services||[]).map(s => `
-    <tr class="border-b border-purple-100/60 hover:bg-purple-50/30 transition">
-      <td data-label="Servicio" class="py-3 px-4 font-bold text-slate-800">${s.name}</td>
-      <td data-label="Precio" class="py-3 px-4 text-purple-700 font-extrabold">${fmt(s.price)}</td>
-      <td data-label="Activo" class="py-3 px-4">
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" data-id="${s.id}" class="svcActive peer sr-only" ${s.active ? 'checked' : ''}>
-          <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-        </label>
-      </td>
-      <td data-label="Acciones" class="py-3 px-4 text-right">
-        <button data-id="${s.id}" class="delSvc bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold px-3 py-1.5 transition">Eliminar 🗑️</button>
-      </td>
-    </tr>`).join('');
+    const rows = (services||[]).map(s => `
+        <tr class="border-b border-slate-100">
+            <td data-label="Servicio" class="py-3 px-3 font-bold text-slate-800">${s.name}</td>
+            <td data-label="Precio" class="py-3 px-3 text-amber-600 font-extrabold">${fmt(s.price)}</td>
+            <td data-label="Activo" class="py-3 px-3">
+                <input type="checkbox" data-id="${s.id}" class="svcActive w-5 h-5 accent-amber-500 rounded cursor-pointer" ${s.active ? 'checked' : ''}>
+            </td>
+            <td data-label="Acción" class="py-3 px-3">
+                <button data-id="${s.id}" class="delSvc text-rose-500 hover:text-rose-700 text-xs font-bold py-1 px-2 rounded-lg hover:bg-rose-50 transition"><i class="fa-solid fa-trash-can mr-1"></i>Eliminar</button>
+            </td>
+        </tr>`).join('');
 
-  content.innerHTML = `
-    <div class="glass-card rounded-3xl p-6 mb-6 shadow-xl shadow-purple-900/5">
-      <h3 class="font-black text-lg mb-4 text-purple-900 flex items-center gap-2">✂️ Nuevo servicio</h3>
-      <form id="newServiceForm" class="flex flex-col sm:flex-row gap-3">
-        <input required id="svcName" placeholder="Nombre del servicio (Ej. Corte Dama)" class="input-styled rounded-xl px-4 py-2.5 text-sm sm:flex-1">
-        <input required type="number" step="0.01" id="svcPrice" placeholder="Precio (Bs.)" class="input-styled rounded-xl px-4 py-2.5 text-sm sm:w-40">
-        <button class="btn-gradient text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow-md shadow-purple-600/20 whitespace-nowrap">
-          Agregar Servicio
-        </button>
-      </form>
-    </div>
+    content.innerHTML = `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/70 shadow-sm space-y-3">
+            <h3 class="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-plus text-amber-500"></i>
+                <span>Nuevo Servicio</span>
+            </h3>
+            <form id="newServiceForm" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input required id="svcName" placeholder="Nombre del servicio" class="sm:col-span-1 bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+                <input required type="number" step="0.01" id="svcPrice" placeholder="Precio (Bs.)" class="sm:col-span-1 bg-slate-50 border border-slate-200 text-xs font-extrabold text-amber-600 rounded-xl px-3 py-2.5 focus:border-amber-500 outline-none">
+                <button class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-2.5 px-4 rounded-xl text-xs shadow-md transition active:scale-95">Agregar</button>
+            </form>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Servicio</th><th class="py-3 px-3">Precio</th><th class="py-3 px-3">Activo</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows || '<tr><td class="py-4 px-3 text-slate-400 font-medium" colspan="4">Sin servicios aún</td></tr>'}</tbody>
+            </table>
+        </div>`;
 
-    <div class="glass-card rounded-3xl shadow-xl shadow-purple-900/5 overflow-hidden border border-purple-100">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm responsive-table">
-          <thead class="bg-gradient-to-r from-purple-50 to-indigo-50/50 text-purple-900 text-left font-bold uppercase text-xs tracking-wider border-b border-purple-100">
-            <tr>
-              <th class="py-3.5 px-4">Servicio</th>
-              <th class="py-3.5 px-4">Precio</th>
-              <th class="py-3.5 px-4">Estado</th>
-              <th class="py-3.5 px-4 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-purple-100/50">
-            ${rows || '<tr><td class="py-6 px-4 text-center text-slate-400 font-medium" colspan="4">No hay servicios registrados</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-
-  document.getElementById('newServiceForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('svcName').value;
-    const price = parseFloat(document.getElementById('svcPrice').value);
-    const { error } = await sb.from('services').insert({ name, price });
-    if (!error) renderServicios();
-  };
-  document.querySelectorAll('.svcActive').forEach(chk => chk.onchange = async () => {
-    await sb.from('services').update({ active: chk.checked }).eq('id', chk.dataset.id);
-  });
-  document.querySelectorAll('.delSvc').forEach(btn => btn.onclick = async () => {
-    showConfirm('Eliminar Servicio', '¿Estás seguro de que deseas eliminar este servicio?', async () => {
-      const { error } = await sb.from('services').delete().eq('id', btn.dataset.id);
-      if (error) {
-        openModal(`
-          <div class="text-center">
-            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">ℹ️</div>
-            <h3 class="text-base font-bold text-slate-800 mb-1">No se puede eliminar</h3>
-            <p class="text-slate-500 text-sm mb-4">Este servicio tiene ingresos asociados. Puedes desactivarlo en su lugar.</p>
-            <button onclick="closeModal()" class="btn-gradient text-white px-5 py-2 rounded-xl text-xs font-bold">Entendido</button>
-          </div>
-        `);
-      } else {
-        renderServicios();
-      }
+    document.getElementById('newServiceForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('svcName').value;
+        const price = parseFloat(document.getElementById('svcPrice').value);
+        const { error } = await sb.from('services').insert({ name, price });
+        if (!error) renderServicios();
+    };
+    document.querySelectorAll('.svcActive').forEach(chk => chk.onchange = async () => {
+        await sb.from('services').update({ active: chk.checked }).eq('id', chk.dataset.id);
     });
-  });
+    document.querySelectorAll('.delSvc').forEach(btn => btn.onclick = async () => {
+        if (!confirm('¿Eliminar este servicio?')) return;
+        const { error } = await sb.from('services').delete().eq('id', btn.dataset.id);
+        if (error) alert('No se puede eliminar: tiene ingresos registrados. Desactívalo en su lugar.');
+        else renderServicios();
+    });
 }
 
 // ----------------------------------------------------------------
 // ADMIN: INGRESOS
 // ----------------------------------------------------------------
 async function renderIngresosAdmin() {
-  layout('ingresos');
-  const { data: employees } = await sb.from('profiles').select('id, full_name').neq('role', 'pendiente');
-  const empOptions = (employees || []).map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-  const content = document.getElementById('content');
-
-  content.innerHTML = `
-    <div class="glass-card rounded-3xl p-5 mb-6 shadow-xl shadow-purple-900/5">
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-        <div class="sm:col-span-1">
-          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Empleado</label>
-          <select id="filtroEmpleado" class="input-styled w-full rounded-xl px-3.5 py-2 text-sm"><option value="">Todos los empleados</option>${empOptions}</select>
-        </div>
-        <div>
-          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Desde</label>
-          <input type="date" id="filtroDesde" class="input-styled w-full rounded-xl px-3.5 py-2 text-sm">
-        </div>
-        <div>
-          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Hasta</label>
-          <input type="date" id="filtroHasta" class="input-styled w-full rounded-xl px-3.5 py-2 text-sm">
-        </div>
-        <button id="filtrarBtn" class="btn-gradient text-white font-bold py-2.5 px-4 rounded-xl text-sm shadow-md shadow-purple-600/20">
-          Filtrar Resultados
-        </button>
-      </div>
-    </div>
+    layout('ingresos');
+    const { data: employees } = await sb.from('profiles').select('id, full_name').neq('role', 'pendiente');
+    const empOptions = (employees || []).map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
     
-    <div id="resumenTotales" class="mb-6"></div>
-    <div id="tablaIngresos" class="glass-card rounded-3xl shadow-xl shadow-purple-900/5 overflow-hidden border border-purple-100"></div>
-  `;
+    app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
+    const content = document.getElementById('content');
 
-  async function cargar() {
-    let query = sb.from('income_records')
-      .select('id, amount, client_name, payment_method, record_date, profiles(full_name), services(name)')
-      .order('record_date', { ascending: false });
-    const emp = document.getElementById('filtroEmpleado').value;
-    const desde = document.getElementById('filtroDesde').value;
-    const hasta = document.getElementById('filtroHasta').value;
-    if (emp) query = query.eq('employee_id', emp);
-    if (desde) query = query.gte('record_date', desde);
-    if (hasta) query = query.lte('record_date', hasta);
+    content.innerHTML = `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/70 shadow-sm">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Empleado</label>
+                    <select id="filtroEmpleado" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none"><option value="">Todos</option>${empOptions}</select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Desde</label>
+                    <input type="date" id="filtroDesde" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Hasta</label>
+                    <input type="date" id="filtroHasta" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+                </div>
+                <button id="filtrarBtn" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-2.5 px-3 rounded-xl text-xs shadow-md transition active:scale-95">Filtrar</button>
+            </div>
+        </div>
+        <div id="resumenTotales"></div>
+        <div id="tablaIngresos" class="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden"></div>
+    `;
 
-    const { data, error } = await query;
-    if (error) { 
-      document.getElementById('tablaIngresos').innerHTML = `<p class="text-rose-600 p-5 font-medium">${error.message}</p>`; 
-      return; 
+    async function cargar() {
+        let query = sb.from('income_records')
+            .select('id, amount, client_name, payment_method, record_date, service_id, employee_id, profiles(full_name), services(name)')
+            .order('record_date', { ascending: false });
+        const emp = document.getElementById('filtroEmpleado').value;
+        const desde = document.getElementById('filtroDesde').value;
+        const hasta = document.getElementById('filtroHasta').value;
+        if (emp) query = query.eq('employee_id', emp);
+        if (desde) query = query.gte('record_date', desde);
+        if (hasta) query = query.lte('record_date', hasta);
+
+        const { data, error } = await query;
+        if (error) { document.getElementById('tablaIngresos').innerHTML = `<p class="text-rose-600 p-3 text-xs font-bold">${error.message}</p>`; return; }
+
+        const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
+        const porEmpleado = {};
+        (data || []).forEach(r => {
+            const nombre = r.profiles?.full_name || '—';
+            porEmpleado[nombre] = (porEmpleado[nombre] || 0) + Number(r.amount);
+        });
+
+        document.getElementById('resumenTotales').innerHTML = `
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
+                <div class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-sm border border-slate-800">
+                    <p class="text-[10px] font-bold uppercase text-slate-400">Total General</p>
+                    <p class="text-lg font-black text-amber-400">${fmt(total)}</p>
+                </div>
+                ${Object.entries(porEmpleado).map(([n,t]) => `
+                    <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm">
+                        <p class="text-[10px] font-bold text-slate-400 truncate">${n}</p>
+                        <p class="text-sm font-extrabold text-slate-800">${fmt(t)}</p>
+                    </div>
+                `).join('')}
+            </div>`;
+
+        const rows = (data || []).map(r => `
+            <tr class="border-b border-slate-100">
+                <td data-label="Fecha" class="py-3 px-3 font-medium text-slate-600">${r.record_date}</td>
+                <td data-label="Empleado" class="py-3 px-3 font-bold text-slate-800">${r.profiles?.full_name || '—'}</td>
+                <td data-label="Servicio" class="py-3 px-3 font-medium text-slate-700">${r.services?.name || '—'}</td>
+                <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
+                <td data-label="Pago" class="py-3 px-3 font-medium text-slate-600 capitalize">${r.payment_method || '—'}</td>
+                <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
+                <td data-label="Acciones" class="py-3 px-3">
+                    <div class="flex items-center space-x-1">
+                        <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </td>
+            </tr>`).join('');
+
+        document.getElementById('tablaIngresos').innerHTML = `
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Fecha</th><th class="py-3 px-3">Empleado</th><th class="py-3 px-3">Servicio</th><th class="py-3 px-3">Cliente</th><th class="py-3 px-3">Pago</th><th class="py-3 px-3">Monto</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows || '<tr><td class="py-4 px-3 text-slate-400 font-medium" colspan="7">Sin registros</td></tr>'}</tbody>
+            </table>`;
     }
 
-    const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
-    const porEmpleado = {};
-    (data || []).forEach(r => {
-      const nombre = r.profiles?.full_name || '—';
-      porEmpleado[nombre] = (porEmpleado[nombre] || 0) + Number(r.amount);
-    });
-
-    document.getElementById('resumenTotales').innerHTML = `
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-gradient-to-br from-purple-700 to-indigo-800 text-white rounded-2xl p-4 shadow-lg shadow-purple-700/20 col-span-2 sm:col-span-1">
-          <p class="text-xs text-purple-200 font-bold uppercase tracking-wider">Total General</p>
-          <p class="text-2xl font-black mt-1">${fmt(total)}</p>
-        </div>
-        ${Object.entries(porEmpleado).map(([n,t]) => `
-          <div class="glass-card rounded-2xl p-4 border border-purple-100">
-            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider truncate">${n}</p>
-            <p class="text-lg font-black text-purple-700 mt-1">${fmt(t)}</p>
-          </div>
-        `).join('')}
-      </div>`;
-
-    const rows = (data || []).map(r => `
-      <tr class="border-b border-purple-100/60 hover:bg-purple-50/30 transition">
-        <td data-label="Fecha" class="py-3 px-4 font-semibold text-slate-600">${r.record_date}</td>
-        <td data-label="Empleado" class="py-3 px-4 font-bold text-slate-800">${r.profiles?.full_name || '—'}</td>
-        <td data-label="Servicio" class="py-3 px-4 font-medium text-slate-700">${r.services?.name || '—'}</td>
-        <td data-label="Cliente" class="py-3 px-4 text-slate-500">${r.client_name || '—'}</td>
-        <td data-label="Método" class="py-3 px-4">${getPaymentBadge(r.payment_method)}</td>
-        <td data-label="Monto" class="py-3 px-4 font-black text-purple-700">${fmt(r.amount)}</td>
-        <td data-label="Acciones" class="py-3 px-4 text-right">
-          <div class="inline-flex gap-1.5">
-            <button data-id="${r.id}" class="editIncAdmin p-1.5 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold transition">✏️</button>
-            <button data-id="${r.id}" class="delIncAdmin p-1.5 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition">🗑️</button>
-          </div>
-        </td>
-      </tr>`).join('');
-
-    document.getElementById('tablaIngresos').innerHTML = `
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm responsive-table">
-          <thead class="bg-gradient-to-r from-purple-50 to-indigo-50/50 text-purple-900 text-left font-bold uppercase text-xs tracking-wider border-b border-purple-100">
-            <tr>
-              <th class="py-3.5 px-4">Fecha</th>
-              <th class="py-3.5 px-4">Empleado</th>
-              <th class="py-3.5 px-4">Servicio</th>
-              <th class="py-3.5 px-4">Cliente</th>
-              <th class="py-3.5 px-4">Pago</th>
-              <th class="py-3.5 px-4">Monto</th>
-              <th class="py-3.5 px-4 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-purple-100/50">
-            ${rows || '<tr><td class="py-6 px-4 text-center text-slate-400 font-medium" colspan="7">No se encontraron registros</td></tr>'}
-          </tbody>
-        </table>
-      </div>`;
-
-    document.querySelectorAll('.editIncAdmin').forEach(btn => {
-      btn.onclick = () => openEditIncomeModal(btn.dataset.id, cargar);
-    });
-    document.querySelectorAll('.delIncAdmin').forEach(btn => {
-      btn.onclick = () => {
-        showConfirm('Eliminar Ingreso', '¿Estás seguro de que deseas borrar este registro de ingreso?', async () => {
-          await sb.from('income_records').delete().eq('id', btn.dataset.id);
-          cargar();
-        });
-      };
-    });
-  }
-
-  document.getElementById('filtrarBtn').onclick = cargar;
-  cargar();
+    document.getElementById('filtrarBtn').onclick = cargar;
+    cargar();
 }
 
 // ----------------------------------------------------------------
 // EMPLEADO: REGISTRAR INGRESO
 // ----------------------------------------------------------------
 async function renderRegistrarIngreso() {
-  layout('registrar');
-  const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
-  const options = (services || []).map(s => `<option value="${s.id}" data-price="${s.price}">${s.name} — ${fmt(s.price)}</option>`).join('');
-  const content = document.getElementById('content');
+    layout('registrar');
+    const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
+    const options = (services || []).map(s => `<option value="${s.id}" data-price="${s.price}">${s.name} — ${fmt(s.price)}</option>`).join('');
+    
+    app.innerHTML = `<div id="content" class="max-w-md mx-auto"></div>`;
+    const content = document.getElementById('content');
 
-  content.innerHTML = `
-    <div class="glass-card rounded-3xl p-6 md:p-8 max-w-lg mx-auto shadow-xl shadow-purple-900/5 border border-purple-100">
-      <h3 class="font-black text-xl mb-6 text-purple-900 flex items-center gap-2.5">
-        <span>➕</span> Registrar nuevo ingreso
-      </h3>
-      <form id="ingresoForm" class="space-y-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Servicio prestado</label>
-          <select required id="servicioSel" class="input-styled w-full rounded-xl px-4 py-3 text-sm">
-            <option value="">Selecciona un servicio</option>${options}
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Monto (Bs.)</label>
-          <input required type="number" step="0.01" id="montoInput" placeholder="0.00" class="input-styled w-full rounded-xl px-4 py-3 text-sm font-bold text-purple-900">
-        </div>
+    content.innerHTML = `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2 pb-2 border-b border-slate-100">
+                <div class="bg-amber-100 text-amber-700 p-2 rounded-xl"><i class="fa-solid fa-scissors"></i></div>
+                <h3 class="font-extrabold text-slate-900 text-base">Registrar Nuevo Ingreso</h3>
+            </div>
+            <form id="ingresoForm" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Servicio *</label>
+                    <select required id="servicioSel" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none">
+                        <option value="">Selecciona un servicio</option>${options}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Monto (Bs.) *</label>
+                    <input required type="number" step="0.01" id="montoInput" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 text-xs font-extrabold text-amber-600 rounded-xl px-3.5 py-3 focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Cliente (Opcional)</label>
+                    <input id="clienteInput" placeholder="Ej. Ana Pérez" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
+                    <select id="pagoInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none">
+                        <option value="efectivo">💵 Efectivo</option>
+                        <option value="tarjeta">💳 Tarjeta</option>
+                        <option value="qr">📱 QR / Transferencia</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha</label>
+                    <input type="date" id="fechaInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-3 font-medium focus:border-amber-500 outline-none" value="${new Date().toISOString().slice(0,10)}">
+                </div>
+                <button class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-3.5 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Guardar Ingreso</span>
+                </button>
+            </form>
+            <p id="okMsg" class="text-emerald-600 text-xs text-center font-extrabold"></p>
+        </div>`;
 
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Nombre del cliente (Opcional)</label>
-          <input id="clienteInput" placeholder="Ej. Ana Torres" class="input-styled w-full rounded-xl px-4 py-3 text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Método de Pago</label>
-          <select id="pagoInput" class="input-styled w-full rounded-xl px-4 py-3 text-sm">
-            <option value="efectivo">💵 Efectivo</option>
-            <option value="tarjeta">💳 Tarjeta</option>
-            <option value="qr">📱 QR / Transferencia</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Fecha del registro</label>
-          <input type="date" id="fechaInput" class="input-styled w-full rounded-xl px-4 py-3 text-sm" value="${new Date().toISOString().slice(0,10)}">
-        </div>
-
-        <button class="w-full btn-gradient text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-600/25 text-sm mt-4">
-          Guardar Registro
-        </button>
-      </form>
-      <p id="okMsg" class="text-emerald-600 text-sm mt-3 text-center font-bold"></p>
-    </div>`;
-
-  document.getElementById('servicioSel').onchange = (e) => {
-    const price = e.target.selectedOptions[0]?.dataset.price;
-    if (price) document.getElementById('montoInput').value = price;
-  };
-
-  document.getElementById('ingresoForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const payload = {
-      employee_id: currentProfile.id,
-      service_id: document.getElementById('servicioSel').value,
-      amount: parseFloat(document.getElementById('montoInput').value),
-      client_name: document.getElementById('clienteInput').value || null,
-      payment_method: document.getElementById('pagoInput').value,
-      record_date: document.getElementById('fechaInput').value
+    document.getElementById('servicioSel').onchange = (e) => {
+        const price = e.target.selectedOptions[0]?.dataset.price;
+        if (price) document.getElementById('montoInput').value = price;
     };
-    const { error } = await sb.from('income_records').insert(payload);
-    if (error) {
-      openModal(`
-        <div class="text-center p-2">
-          <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">❌</div>
-          <h3 class="text-base font-bold text-slate-800 mb-1">Error al guardar</h3>
-          <p class="text-slate-500 text-sm mb-4">${error.message}</p>
-          <button onclick="closeModal()" class="btn-gradient text-white px-5 py-2 rounded-xl text-xs font-bold">Cerrar</button>
-        </div>
-      `);
-      return;
-    }
-    document.getElementById('ingresoForm').reset();
-    document.getElementById('fechaInput').value = new Date().toISOString().slice(0,10);
-    document.getElementById('okMsg').textContent = '✨ ¡Ingreso registrado con éxito!';
-    setTimeout(() => document.getElementById('okMsg').textContent = '', 2500);
-  };
+
+    document.getElementById('ingresoForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            employee_id: currentProfile.id,
+            service_id: document.getElementById('servicioSel').value,
+            amount: parseFloat(document.getElementById('montoInput').value),
+            client_name: document.getElementById('clienteInput').value || null,
+            payment_method: document.getElementById('pagoInput').value,
+            record_date: document.getElementById('fechaInput').value
+        };
+        const { error } = await sb.from('income_records').insert(payload);
+        if (error) return alert(error.message);
+        document.getElementById('ingresoForm').reset();
+        document.getElementById('fechaInput').value = new Date().toISOString().slice(0,10);
+        document.getElementById('okMsg').textContent = '✓ Ingreso registrado con éxito';
+        setTimeout(() => document.getElementById('okMsg').textContent = '', 2500);
+    };
 }
 
 // ----------------------------------------------------------------
 // EMPLEADO: MI HISTORIAL
 // ----------------------------------------------------------------
 async function renderMiHistorial() {
-  layout('mishistorial');
-  
-  async function cargarHistorial() {
+    layout('mishistorial');
     const { data, error } = await sb.from('income_records')
-      .select('id, amount, client_name, payment_method, record_date, services(name)')
-      .eq('employee_id', currentProfile.id)
-      .order('record_date', { ascending: false });
-      
+        .select('id, amount, client_name, payment_method, record_date, service_id, services(name)')
+        .eq('employee_id', currentProfile.id)
+        .order('record_date', { ascending: false });
+    
+    app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
     const content = document.getElementById('content');
-    if (error) { content.innerHTML = `<p class="text-rose-600 p-4 font-semibold">${error.message}</p>`; return; }
+    if (error) { content.innerHTML = `<p class="text-rose-600 text-xs font-bold">${error.message}</p>`; return; }
 
     const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
     const rows = (data || []).map(r => `
-      <tr class="border-b border-purple-100/60 hover:bg-purple-50/30 transition">
-        <td data-label="Fecha" class="py-3 px-4 font-semibold text-slate-600">${r.record_date}</td>
-        <td data-label="Servicio" class="py-3 px-4 font-bold text-slate-800">${r.services?.name || '—'}</td>
-        <td data-label="Cliente" class="py-3 px-4 text-slate-500">${r.client_name || '—'}</td>
-        <td data-label="Pago" class="py-3 px-4">${getPaymentBadge(r.payment_method)}</td>
-        <td data-label="Monto" class="py-3 px-4 font-black text-purple-700">${fmt(r.amount)}</td>
-        <td data-label="Acciones" class="py-3 px-4 text-right">
-          <div class="inline-flex gap-1.5">
-            <button data-id="${r.id}" class="editIncEmp p-1.5 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold transition">✏️</button>
-            <button data-id="${r.id}" class="delIncEmp p-1.5 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition">🗑️</button>
-          </div>
-        </td>
-      </tr>`).join('');
+        <tr class="border-b border-slate-100">
+            <td data-label="Fecha" class="py-3 px-3 font-medium text-slate-600">${r.record_date}</td>
+            <td data-label="Servicio" class="py-3 px-3 font-bold text-slate-800">${r.services?.name || '—'}</td>
+            <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
+            <td data-label="Pago" class="py-3 px-3 font-medium text-slate-600 capitalize">${r.payment_method || '—'}</td>
+            <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
+            <td data-label="Acciones" class="py-3 px-3">
+                <div class="flex items-center space-x-1">
+                    <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </td>
+        </tr>`).join('');
 
     content.innerHTML = `
-      <div class="bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-3xl p-6 mb-6 shadow-xl shadow-purple-700/20 max-w-sm">
-        <p class="text-xs text-purple-200 font-bold uppercase tracking-wider">Mi Total Acumulado</p>
-        <p class="text-3xl font-black mt-1">${fmt(total)}</p>
-      </div>
-
-      <div class="glass-card rounded-3xl shadow-xl shadow-purple-900/5 overflow-hidden border border-purple-100">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm responsive-table">
-            <thead class="bg-gradient-to-r from-purple-50 to-indigo-50/50 text-purple-900 text-left font-bold uppercase text-xs tracking-wider border-b border-purple-100">
-              <tr>
-                <th class="py-3.5 px-4">Fecha</th>
-                <th class="py-3.5 px-4">Servicio</th>
-                <th class="py-3.5 px-4">Cliente</th>
-                <th class="py-3.5 px-4">Pago</th>
-                <th class="py-3.5 px-4">Monto</th>
-                <th class="py-3.5 px-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-purple-100/50">
-              ${rows || '<tr><td class="py-6 px-4 text-center text-slate-400 font-medium" colspan="6">Aún no tienes registros guardados</td></tr>'}
-            </tbody>
-          </table>
+        <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border border-slate-800 inline-block">
+            <p class="text-[10px] font-bold uppercase text-slate-400">Mi Total Acumulado</p>
+            <p class="text-xl font-black text-amber-400">${fmt(total)}</p>
         </div>
-      </div>`;
-
-    document.querySelectorAll('.editIncEmp').forEach(btn => {
-      btn.onclick = () => openEditIncomeModal(btn.dataset.id, cargarHistorial);
-    });
-    document.querySelectorAll('.delIncEmp').forEach(btn => {
-      btn.onclick = () => {
-        showConfirm('Eliminar Registro', '¿Deseas eliminar este ingreso de tu historial?', async () => {
-          await sb.from('income_records').delete().eq('id', btn.dataset.id);
-          cargarHistorial();
-        });
-      };
-    });
-  }
-
-  cargarHistorial();
+        <div class="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+            <table class="w-full text-xs responsive-table">
+                <thead class="bg-slate-50 text-slate-700 text-left font-bold border-b border-slate-100">
+                    <tr><th class="py-3 px-3">Fecha</th><th class="py-3 px-3">Servicio</th><th class="py-3 px-3">Cliente</th><th class="py-3 px-3">Pago</th><th class="py-3 px-3">Monto</th><th class="py-3 px-3"></th></tr>
+                </thead>
+                <tbody>${rows || '<tr><td class="py-4 px-3 text-slate-400 font-medium" colspan="6">Aún no tienes registros</td></tr>'}</tbody>
+            </table>
+        </div>`;
 }
 
 // ----------------------------------------------------------------
-// SESIÓN & INICIALIZACIÓN
+// EDICIÓN Y ELIMINACIÓN DE REGISTROS
+// ----------------------------------------------------------------
+async function openEditModal(id, serviceId, amount, clientName, paymentMethod, recordDate) {
+    document.getElementById('editRecordId').value = id;
+    document.getElementById('editMontoInput').value = amount;
+    document.getElementById('editClienteInput').value = clientName || '';
+    document.getElementById('editPagoInput').value = paymentMethod || 'efectivo';
+    document.getElementById('editFechaInput').value = recordDate;
+
+    const { data: services } = await sb.from('services').select('*').order('name');
+    const select = document.getElementById('editServicioSel');
+    select.innerHTML = (services || []).map(s => 
+        `<option value="${s.id}" ${s.id === serviceId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+
+    document.getElementById('modalEdit').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('modalEdit').classList.add('hidden');
+}
+
+document.getElementById('editIngresoForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editRecordId').value;
+    const payload = {
+        service_id: document.getElementById('editServicioSel').value,
+        amount: parseFloat(document.getElementById('editMontoInput').value),
+        client_name: document.getElementById('editClienteInput').value || null,
+        payment_method: document.getElementById('editPagoInput').value,
+        record_date: document.getElementById('editFechaInput').value
+    };
+
+    const { error } = await sb.from('income_records').update(payload).eq('id', id);
+    if (error) return alert('Error al actualizar: ' + error.message);
+
+    closeEditModal();
+    if (currentProfile.role === 'admin') renderIngresosAdmin();
+    else renderMiHistorial();
+};
+
+async function deleteRecord(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este registro de ingreso?')) return;
+    const { error } = await sb.from('income_records').delete().eq('id', id);
+    if (error) return alert('Error al eliminar: ' + error.message);
+
+    if (currentProfile.role === 'admin') renderIngresosAdmin();
+    else renderMiHistorial();
+}
+
+// ----------------------------------------------------------------
+// SESIÓN
 // ----------------------------------------------------------------
 async function loadSession() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) return renderAuth();
-  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-  if (error || !profile) return renderPending();
-  currentProfile = profile;
-  if (profile.role === 'pendiente' || !profile.active) return renderPending();
-  if (profile.role === 'admin') renderUsuarios();
-  else renderRegistrarIngreso();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return renderAuth();
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    if (error || !profile) return renderPending();
+    currentProfile = profile;
+    if (profile.role === 'pendiente' || !profile.active) return renderPending();
+    if (profile.role === 'admin') renderUsuarios();
+    else renderRegistrarIngreso();
 }
 
 sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') renderAuth(); });
