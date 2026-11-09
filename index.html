@@ -122,7 +122,7 @@
 
 <script>
 let currentProfile = null;
-let servicesCache = []; // Cache local para optimizar velocidad
+let servicesCache = [];
 let selectedServiceId = null;
 const app = document.getElementById('app');
 const mobileNav = document.getElementById('mobileNav');
@@ -131,11 +131,13 @@ const tabsContainer = document.getElementById('tabsContainer');
 
 const fmt = n => 'Bs. ' + Number(n || 0).toFixed(2);
 
-// Formateador optimizado de fecha y hora
-function formatDateTime(dateStr) {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
+// Formateador corregido de fecha y hora exacta
+function formatDateTime(dateStr, createdStr) {
+    const raw = dateStr || createdStr;
+    if (!raw) return '—';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw;
+    
     const pad = n => n.toString().padStart(2, '0');
     const hours = pad(d.getHours());
     const mins = pad(d.getMinutes());
@@ -145,7 +147,7 @@ function formatDateTime(dateStr) {
     return `${hours}:${mins} · ${day}/${month}/${year}`;
 }
 
-// Convierte objeto Date o string a ISO para datetime-local input
+// Convierte objeto Date a ISO local sin desfase horario para inputs
 function toLocalDatetimeInput(dateStr) {
     const d = dateStr ? new Date(dateStr) : new Date();
     if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 16);
@@ -438,13 +440,13 @@ async function renderIngresosAdmin() {
     async function cargar() {
         let query = sb.from('income_records')
             .select('id, amount, client_name, payment_method, record_date, created_at, service_id, employee_id, profiles(full_name), services(name)')
-            .order('record_date', { ascending: false });
+            .order('created_at', { ascending: false });
         const emp = document.getElementById('filtroEmpleado').value;
         const desde = document.getElementById('filtroDesde').value;
         const hasta = document.getElementById('filtroHasta').value;
         if (emp) query = query.eq('employee_id', emp);
-        if (desde) query = query.gte('record_date', desde);
-        if (hasta) query = query.lte('record_date', hasta + 'T23:59:59');
+        if (desde) query = query.gte('created_at', desde);
+        if (hasta) query = query.lte('created_at', hasta + 'T23:59:59');
 
         const { data, error } = await query;
         if (error) { document.getElementById('tablaIngresos').innerHTML = `<p class="text-rose-600 p-3 text-xs font-bold">${error.message}</p>`; return; }
@@ -472,7 +474,7 @@ async function renderIngresosAdmin() {
 
         const rows = (data || []).map(r => `
             <tr class="border-b border-slate-100">
-                <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.record_date || r.created_at)}</td>
+                <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.created_at, r.record_date)}</td>
                 <td data-label="Empleado" class="py-3 px-3 font-bold text-slate-800">${r.profiles?.full_name || '—'}</td>
                 <td data-label="Servicio" class="py-3 px-3 font-medium text-slate-700">${r.services?.name || '—'}</td>
                 <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
@@ -480,7 +482,7 @@ async function renderIngresosAdmin() {
                 <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
                 <td data-label="Acciones" class="py-3 px-3">
                     <div class="flex items-center space-x-1">
-                        <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date || r.created_at}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.created_at || r.record_date}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 </td>
@@ -500,13 +502,12 @@ async function renderIngresosAdmin() {
 }
 
 // ----------------------------------------------------------------
-// EMPLEADO: REGISTRAR INGRESO (CON GALERÍA DE SERVICIOS)
+// EMPLEADO: REGISTRAR INGRESO (GALERÍA DE SERVICIOS)
 // ----------------------------------------------------------------
 async function renderRegistrarIngreso() {
     layout('registrar');
     selectedServiceId = null;
     
-    // Usar cache o consultar si está vacía
     if (!servicesCache.length) {
         const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
         servicesCache = services || [];
@@ -583,14 +584,18 @@ async function renderRegistrarIngreso() {
             return;
         }
 
+        const dateInputValue = document.getElementById('fechaInput').value;
+        const recordDateStr = dateInputValue ? new Date(dateInputValue).toISOString() : new Date().toISOString();
+
         const payload = {
             employee_id: currentProfile.id,
             service_id: selectedServiceId,
             amount: parseFloat(document.getElementById('montoInput').value),
             client_name: document.getElementById('clienteInput').value || null,
             payment_method: document.getElementById('pagoInput').value,
-            record_date: new Date(document.getElementById('fechaInput').value).toISOString()
+            record_date: recordDateStr
         };
+
         const { error } = await sb.from('income_records').insert(payload);
         if (error) return alert(error.message);
         document.getElementById('ingresoForm').reset();
@@ -605,7 +610,6 @@ async function renderRegistrarIngreso() {
     };
 }
 
-// Selector visual de tarjeta en la Galería
 function selectServiceCard(id, price) {
     selectedServiceId = id;
     document.getElementById('montoInput').value = price;
@@ -638,7 +642,7 @@ async function renderMiHistorial() {
     const { data, error } = await sb.from('income_records')
         .select('id, amount, client_name, payment_method, record_date, created_at, service_id, services(name)')
         .eq('employee_id', currentProfile.id)
-        .order('record_date', { ascending: false });
+        .order('created_at', { ascending: false });
     
     app.innerHTML = `<div id="content" class="space-y-3.5"></div>`;
     const content = document.getElementById('content');
@@ -647,14 +651,14 @@ async function renderMiHistorial() {
     const total = (data || []).reduce((s, r) => s + Number(r.amount), 0);
     const rows = (data || []).map(r => `
         <tr class="border-b border-slate-100">
-            <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.record_date || r.created_at)}</td>
+            <td data-label="Hora y Fecha" class="py-3 px-3 font-semibold text-slate-700">${formatDateTime(r.created_at, r.record_date)}</td>
             <td data-label="Servicio" class="py-3 px-3 font-bold text-slate-800">${r.services?.name || '—'}</td>
             <td data-label="Cliente" class="py-3 px-3 font-medium text-slate-700">${r.client_name || '—'}</td>
             <td data-label="Pago" class="py-3 px-3 font-medium text-slate-600 capitalize">${r.payment_method || '—'}</td>
             <td data-label="Monto" class="py-3 px-3 font-black text-amber-600">${fmt(r.amount)}</td>
             <td data-label="Acciones" class="py-3 px-3">
                 <div class="flex items-center space-x-1">
-                    <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.record_date || r.created_at}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="openEditModal('${r.id}', '${r.service_id||''}', ${r.amount}, '${r.client_name||''}', '${r.payment_method||'efectivo'}', '${r.created_at || r.record_date}')" class="text-amber-600 hover:text-amber-800 p-1 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button onclick="deleteRecord('${r.id}')" class="text-rose-500 hover:text-rose-700 p-1 rounded"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
             </td>
@@ -685,7 +689,6 @@ async function openEditModal(id, serviceId, amount, clientName, paymentMethod, r
     document.getElementById('editPagoInput').value = paymentMethod || 'efectivo';
     document.getElementById('editFechaInput').value = toLocalDatetimeInput(recordDate);
 
-    // Carga ultrarrápida usando caché
     if (!servicesCache.length) {
         const { data: services } = await sb.from('services').select('*').order('name');
         servicesCache = services || [];
@@ -705,12 +708,13 @@ function closeEditModal() {
 document.getElementById('editIngresoForm').onsubmit = async (e) => {
     e.preventDefault();
     const id = document.getElementById('editRecordId').value;
+    const dateVal = document.getElementById('editFechaInput').value;
     const payload = {
         service_id: document.getElementById('editServicioSel').value,
         amount: parseFloat(document.getElementById('editMontoInput').value),
         client_name: document.getElementById('editClienteInput').value || null,
         payment_method: document.getElementById('editPagoInput').value,
-        record_date: new Date(document.getElementById('editFechaInput').value).toISOString()
+        record_date: new Date(dateVal).toISOString()
     };
 
     const { error } = await sb.from('income_records').update(payload).eq('id', id);
@@ -737,7 +741,6 @@ async function loadSession() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return renderAuth();
     
-    // Carga en paralelo del perfil y la caché de servicios para reducir latencia
     const [profileRes, servicesRes] = await Promise.all([
         sb.from('profiles').select('*').eq('id', session.user.id).single(),
         sb.from('services').select('*').order('name')
