@@ -6,6 +6,8 @@
 <title>Peluquería · Control de Ingresos</title>
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- FontAwesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Supabase JS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Google Fonts: Plus Jakarta Sans & Inter -->
@@ -121,9 +123,53 @@
 
 <div id="app" class="max-w-5xl mx-auto px-4 sm:px-6 pt-4"></div>
 
-<!-- Modal Container for Custom Editing & Notifications -->
+<!-- Modal Container para Edición y Mensajes -->
 <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-200">
   <div id="modalContainer" class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 transform scale-95 transition-all duration-200 border border-purple-100"></div>
+</div>
+
+<!-- Modal de Edición de Registro -->
+<div id="modalEdit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+            <div class="flex items-center space-x-2">
+                <div class="bg-amber-100 text-amber-700 p-2 rounded-xl"><i class="fa-solid fa-pen-to-square"></i></div>
+                <h3 class="font-extrabold text-slate-900 text-base">Editar Ingreso</h3>
+            </div>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <form id="editIngresoForm" class="space-y-3">
+            <input type="hidden" id="editRecordId">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Servicio</label>
+                <select id="editServicioSel" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Monto (Bs.)</label>
+                <input required type="number" step="0.01" id="editMontoInput" class="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-amber-600 rounded-xl px-3 py-2.5 focus:border-amber-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Cliente</label>
+                <input id="editClienteInput" placeholder="Nombre cliente" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Forma de Pago</label>
+                <select id="editPagoInput" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="tarjeta">💳 Tarjeta</option>
+                    <option value="qr">📱 QR / Transferencia</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Fecha y Hora</label>
+                <input type="datetime-local" id="editFechaInput" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 font-medium focus:border-amber-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button type="button" onclick="closeEditModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">Cancelar</button>
+                <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-2.5 rounded-xl text-xs shadow-md transition">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Barra de navegación inferior (solo móvil) -->
@@ -135,20 +181,33 @@ let servicesCache = [];
 let selectedServiceId = null;
 const app = document.getElementById('app');
 const mobileNav = document.getElementById('mobileNav');
-const mainHeader = document.getElementById('mainHeader');
-const tabsContainer = document.getElementById('tabsContainer');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalContainer = document.getElementById('modalContainer');
 
 const fmt = n => 'Bs. ' + Number(n || 0).toFixed(2);
 
-// CORREGIDO: Formatea la hora y fecha respetando la zona horaria local de forma precisa
+function logoHeader(sub) {
+  return `
+    <div class="bg-gradient-to-r from-purple-700 via-purple-600 to-fuchsia-600 rounded-3xl text-white p-6 md:p-7 mb-6 shadow-xl shadow-purple-900/15 relative overflow-hidden">
+      <div class="relative z-10">
+        <h1 class="text-2xl md:text-3xl font-black flex items-center gap-2.5 tracking-tight">💇‍♀️ Peluquería</h1>
+        <div class="text-purple-100 text-xs md:text-sm mt-1 font-medium">${sub}</div>
+      </div>
+      <div class="absolute -right-8 -bottom-8 w-36 h-36 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+    </div>`;
+}
+
+// CORRECCIÓN ROBUSTA DE FECHA Y HORA LOCAL
 function formatDateTime(dateStr) {
     if (!dateStr) return '—';
+    if (typeof dateStr === 'string' && dateStr.length === 10 && !dateStr.includes('T') && !dateStr.includes(' ')) {
+        const parts = dateStr.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    
     let d;
-    if (typeof dateStr === 'string' && dateStr.length >= 16 && dateStr.includes('T')) {
-        const [datePart, timePart] = dateStr.split('T');
-        const [y, m, day] = datePart.split('-').map(Number);
-        const [h, min] = timePart.split(':').map(Number);
-        d = new Date(y, m - 1, day, h, min);
+    if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
+        d = new Date(dateStr.replace(' ', 'T'));
     } else {
         d = new Date(dateStr);
     }
@@ -158,16 +217,16 @@ function formatDateTime(dateStr) {
     return `${pad(d.getHours())}:${pad(d.getMinutes())} · ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
-// CORREGIDO: Genera el string para input datetime-local en formato HH:mm local sin desplazamiento UTC
+// Formato compatible para inputs datetime-local
 function toLocalDatetimeInput(dateStr) {
-    const d = dateStr ? new Date(dateStr) : new Date();
+    const d = dateStr ? new Date(typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr) : new Date();
     if (isNaN(d.getTime())) return '';
     const pad = n => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ----------------------------------------------------------------
-// MODAL SYSTEM (REPLACES ALERT/CONFIRM)
+// MODAL SYSTEM
 // ----------------------------------------------------------------
 function openModal(html) {
   modalContainer.innerHTML = html;
@@ -182,9 +241,11 @@ function closeModal() {
   modalContainer.classList.add('scale-95');
 }
 
-modalOverlay.onclick = (e) => {
-  if (e.target === modalOverlay) closeModal();
-};
+if (modalOverlay) {
+  modalOverlay.onclick = (e) => {
+    if (e.target === modalOverlay) closeModal();
+  };
+}
 
 function showConfirm(title, message, onConfirm) {
   openModal(`
@@ -366,83 +427,6 @@ function layout(activeTab) {
   document.querySelectorAll('[data-tab]').forEach(btn => btn.onclick = () => go(btn.dataset.tab));
 }
 
-// Helper: Payment Method Badge
-function getPaymentBadge(method) {
-  const m = (method || '').toLowerCase();
-  if (m.includes('efectivo')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">💵 Efectivo</span>`;
-  if (m.includes('tarjeta')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">💳 Tarjeta</span>`;
-  if (m.includes('qr') || m.includes('transferencia')) return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">📱 QR / Transf.</span>`;
-  return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 capitalize">${method || '—'}</span>`;
-}
-
-// ----------------------------------------------------------------
-// MODAL: EDITAR INGRESO (ADMIN & EMPLEADO)
-// ----------------------------------------------------------------
-async function openEditIncomeModal(incomeId, onSaved) {
-  const { data: record, error } = await sb.from('income_records').select('*').eq('id', incomeId).single();
-  if (error || !record) return;
-
-  const { data: services } = await sb.from('services').select('*').eq('active', true).order('name');
-  const serviceOptions = (services || []).map(s => 
-    `<option value="${s.id}" ${s.id === record.service_id ? 'selected' : ''}>${s.name} — ${fmt(s.price)}</option>`
-  ).join('');
-
-  openModal(`
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">✏️ Editar Ingreso</h3>
-      <button id="closeModalCross" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
-    </div>
-    <form id="editIncomeForm" class="space-y-3.5 text-left">
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Servicio</label>
-        <select required id="editServicio" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">${serviceOptions}</select>
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Monto (Bs.)</label>
-        <input required type="number" step="0.01" id="editMonto" value="${record.amount}" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Cliente</label>
-        <input id="editCliente" value="${record.client_name || ''}" placeholder="Nombre del cliente" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Método de pago</label>
-        <select id="editPago" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-          <option value="efectivo" ${record.payment_method === 'efectivo' ? 'selected' : ''}>💵 Efectivo</option>
-          <option value="tarjeta" ${record.payment_method === 'tarjeta' ? 'selected' : ''}>💳 Tarjeta</option>
-          <option value="qr" ${record.payment_method === 'qr' ? 'selected' : ''}>📱 QR / Transferencia</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Fecha</label>
-        <input type="date" id="editFecha" value="${record.record_date}" class="input-styled w-full rounded-xl px-3.5 py-2.5 text-sm">
-      </div>
-      <div class="flex gap-2 justify-end mt-5 pt-2 border-t border-slate-100">
-        <button type="button" id="cancelEditBtn" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50">Cancelar</button>
-        <button type="submit" class="btn-gradient px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md shadow-purple-600/20">Guardar Cambios</button>
-      </div>
-    </form>
-  `);
-
-  document.getElementById('closeModalCross').onclick = closeModal;
-  document.getElementById('cancelEditBtn').onclick = closeModal;
-  document.getElementById('editIncomeForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const updated = {
-      service_id: document.getElementById('editServicio').value,
-      amount: parseFloat(document.getElementById('editMonto').value),
-      client_name: document.getElementById('editCliente').value || null,
-      payment_method: document.getElementById('editPago').value,
-      record_date: document.getElementById('editFecha').value
-    };
-    const { error: updateErr } = await sb.from('income_records').update(updated).eq('id', incomeId);
-    if (!updateErr) {
-      closeModal();
-      if (onSaved) onSaved();
-    }
-  };
-}
-
 // ----------------------------------------------------------------
 // ADMIN: USUARIOS
 // ----------------------------------------------------------------
@@ -512,6 +496,8 @@ async function renderUsuarios() {
 async function renderServicios() {
   layout('servicios');
   const { data: services, error } = await sb.from('services').select('*').order('created_at');
+  if (!error) servicesCache = services || [];
+
   const content = document.getElementById('content');
   if (error) return;
 
@@ -690,7 +676,7 @@ async function renderIngresosAdmin() {
 }
 
 // ----------------------------------------------------------------
-// EMPLEADO: REGISTRAR INGRESO (CON GALERÍA DE SERVICIOS)
+// EMPLEADO: REGISTRAR INGRESO (GALERÍA DE SERVICIOS)
 // ----------------------------------------------------------------
 async function renderRegistrarIngreso() {
     layout('registrar');
@@ -768,7 +754,14 @@ async function renderRegistrarIngreso() {
     document.getElementById('ingresoForm').onsubmit = async (e) => {
         e.preventDefault();
         if (!selectedServiceId) {
-            alert("Por favor, selecciona un servicio de la galería.");
+            openModal(`
+              <div class="text-center">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">✂️</div>
+                <h3 class="text-base font-bold text-slate-800 mb-1">Servicio requerido</h3>
+                <p class="text-slate-500 text-sm mb-4">Por favor, selecciona un servicio de la galería.</p>
+                <button onclick="closeModal()" class="btn-gradient text-white px-5 py-2 rounded-xl text-xs font-bold">Entendido</button>
+              </div>
+            `);
             return;
         }
 
@@ -795,6 +788,30 @@ async function renderRegistrarIngreso() {
         document.getElementById('okMsg').textContent = '✓ Ingreso registrado con éxito';
         setTimeout(() => document.getElementById('okMsg').textContent = '', 2500);
     };
+}
+
+function selectServiceCard(id, price) {
+    selectedServiceId = id;
+    document.getElementById('montoInput').value = price;
+
+    document.querySelectorAll('.svc-card').forEach(c => {
+        c.classList.remove('bg-amber-100/80', 'border-amber-500', 'shadow-md');
+        const icon = c.querySelector('.check-icon');
+        if (icon) {
+            icon.classList.remove('text-amber-600');
+            icon.classList.add('text-slate-300');
+        }
+    });
+
+    const activeCard = document.getElementById(`svc-card-${id}`);
+    if (activeCard) {
+        activeCard.classList.add('bg-amber-100/80', 'border-amber-500', 'shadow-md');
+        const icon = activeCard.querySelector('.check-icon');
+        if (icon) {
+            icon.classList.remove('text-slate-300');
+            icon.classList.add('text-amber-600');
+        }
+    }
 }
 
 // ----------------------------------------------------------------
@@ -872,7 +889,6 @@ function closeEditModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// Register submit listener safely when modal element is present
 const editForm = document.getElementById('editIngresoForm');
 if (editForm) {
     editForm.onsubmit = async (e) => {
@@ -899,12 +915,13 @@ if (editForm) {
 }
 
 async function deleteRecord(id) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este registro de ingreso?')) return;
-    const { error } = await sb.from('income_records').delete().eq('id', id);
-    if (error) return alert('Error al eliminar: ' + error.message);
+    showConfirm('Eliminar Ingreso', '¿Estás seguro de que deseas eliminar este registro de ingreso?', async () => {
+      const { error } = await sb.from('income_records').delete().eq('id', id);
+      if (error) return alert('Error al eliminar: ' + error.message);
 
-    if (currentProfile.role === 'admin') renderIngresosAdmin();
-    else renderMiHistorial();
+      if (currentProfile.role === 'admin') renderIngresosAdmin();
+      else renderMiHistorial();
+    });
 }
 
 // ----------------------------------------------------------------
@@ -924,3 +941,5 @@ async function loadSession() {
 sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') renderAuth(); });
 loadSession();
 </script>
+</body>
+</html>
